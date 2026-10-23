@@ -553,12 +553,16 @@
       : (r.last ? 'Latest: ' + r.last.name + '. ' : 'An empty desert, for now. ') +
         (r.next ? 'Next: ' + r.next.name + ' at ' + r.next.at.toLocaleString() + ' words.' : '');
     return '<section class="panel city">' +
-      '<div class="city-head"><h2>Your city</h2>' +
-        '<button class="btn" id="city-preview" aria-pressed="' + cityPreview + '">' + (cityPreview ? 'Back to my city' : 'Preview the fluent city') + '</button></div>' +
       '<div class="city-frame">' + r.svg + '</div>' +
-      '<div class="city-foot"><span>' + esc(status) + '</span>' +
-        '<span class="muted">' + words.toLocaleString() + ' / ' + window.CITY.FLUENT_WORDS.toLocaleString() + ' words · ' + (pct < 1 && pct > 0 ? pct.toFixed(1) : Math.round(pct)) + '% to fluency</span></div>' +
-      '<div class="bar" role="img" aria-label="' + pct.toFixed(1) + '% to fluency"><div style="width:' + pct + '%"></div></div>' +
+      '<div class="city-info">' +
+        '<h2>Your city</h2>' +
+        '<div class="city-num">' + words.toLocaleString() + '<small> / ' + window.CITY.FLUENT_WORDS.toLocaleString() + ' words</small></div>' +
+        '<div class="bar" role="img" aria-label="' + pct.toFixed(1) + '% to fluency"><div style="width:' + pct + '%"></div></div>' +
+        '<div class="muted small">' + (pct < 1 && pct > 0 ? pct.toFixed(1) : Math.round(pct)) + '% of the way to fluency · ' + r.unlocked + ' of ' + r.total + ' landmarks</div>' +
+        '<p style="margin:4px 0 0">' + esc(status) + '</p>' +
+        '<p class="muted small" style="margin:0">Learned words count fully, words you’re still learning count half.</p>' +
+        '<div><button class="btn" id="city-preview" aria-pressed="' + cityPreview + '">' + (cityPreview ? 'Back to my city' : 'Preview the fluent city') + '</button></div>' +
+      '</div>' +
     '</section>';
   }
   function tile(label, num, sub) {
