@@ -19,9 +19,17 @@ Top bar: **Show diacritics** hides or shows the vowel marks everywhere; the swat
 
 ## Progress
 
-Progress is saved automatically in the browser you use (localStorage). It stays in that browser only,
-so use **Export backup** on the dashboard now and then, and **Import** to restore it or move it to another device.
-Clearing the browser’s site data erases it.
+Progress is always saved in the browser you use. To keep it online and use it on several devices,
+create an account (email + password) in **Your progress** on the dashboard and sign in.
+After that every review is saved to the online database (a Supabase project called `arabic`),
+and signing in on another device brings your progress there. If you study on two devices,
+the app keeps the most recent review of each card.
+
+**Export backup** / **Import** on the dashboard still work as a manual safety copy.
+
+The database only lets a signed-in user read and write their own progress. If you want to stop anyone else
+from creating an account, turn off new sign-ups in the Supabase dashboard
+(Authentication → Sign In / Providers → “Allow new users to sign up”) after creating yours.
 
 ## Audio
 

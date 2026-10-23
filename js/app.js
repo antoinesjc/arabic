@@ -47,15 +47,94 @@
     base.cards = s.cards && typeof s.cards === 'object' ? s.cards : {};
     base.log = s.log && typeof s.log === 'object' ? s.log : {};
     base.introduced = s.introduced && typeof s.introduced === 'object' ? s.introduced : {};
+    base.savedAt = s.savedAt || 0;
     return base;
   }
-  function save() {
+
+  // Combine progress from two devices: keep the most recently reviewed version of each card.
+  function merge(a, b) {
+    var newer = (b.savedAt || 0) > (a.savedAt || 0) ? b : a;
+    var out = clone(newer);
+    out.cards = Object.assign({}, a.cards);
+    Object.keys(b.cards).forEach(function (k) {
+      if (!out.cards[k] || (b.cards[k].last || 0) > (out.cards[k].last || 0)) out.cards[k] = b.cards[k];
+    });
+    out.log = Object.assign({}, a.log);
+    Object.keys(b.log).forEach(function (d) {
+      if (!out.log[d] || b.log[d].n > out.log[d].n) out.log[d] = b.log[d];
+    });
+    out.introduced = Object.assign({}, a.introduced);
+    Object.keys(b.introduced).forEach(function (d) {
+      out.introduced[d] = Math.max(out.introduced[d] || 0, b.introduced[d]);
+    });
+    out.savedAt = Math.max(a.savedAt || 0, b.savedAt || 0);
+    return out;
+  }
+  function saveLocal() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
     catch (e) { toast('Could not save progress in this browser.'); }
+  }
+  function save() {
+    state.savedAt = Date.now();
+    saveLocal();
+    schedulePush();
   }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   var state = load();
+
+  // ─────────────────────────── Online sync (Supabase) ───────────────────────────
+  // The publishable key is meant to be public; the database only lets a signed-in user read/write their own row.
+  var SB_URL = 'https://wvefczonbcyujdmxlumc.supabase.co';
+  var SB_KEY = 'sb_publishable_i4L4eB8giIR0Uiv0iV-G4g_m757wEg0';
+  var sb = null;
+  try { if (window.supabase && window.supabase.createClient) sb = window.supabase.createClient(SB_URL, SB_KEY); } catch (e) { sb = null; }
+  var cloud = { user: null, status: 'idle', last: null, msg: '', email: '', timer: null, busy: false };
+
+  function schedulePush() {
+    if (!sb || !cloud.user) return;
+    clearTimeout(cloud.timer);
+    cloud.timer = setTimeout(push, 1500);
+  }
+  async function push() {
+    if (!sb || !cloud.user) return;
+    clearTimeout(cloud.timer);
+    cloud.status = 'saving'; renderSyncPanel();
+    var res = await sb.from('progress').upsert({ user_id: cloud.user.id, data: state, updated_at: new Date().toISOString() });
+    if (res.error) { cloud.status = 'error'; cloud.msg = res.error.message; }
+    else { cloud.status = 'synced'; cloud.last = Date.now(); cloud.msg = ''; }
+    renderSyncPanel();
+  }
+  async function pull() {
+    if (!sb || !cloud.user || cloud.busy) return;
+    cloud.busy = true;
+    cloud.status = 'saving'; renderSyncPanel();
+    var res = await sb.from('progress').select('data').eq('user_id', cloud.user.id).maybeSingle();
+    cloud.busy = false;
+    if (res.error) { cloud.status = 'error'; cloud.msg = res.error.message; renderSyncPanel(); return; }
+    if (res.data && res.data.data) {
+      state = merge(state, normalise(res.data.data));
+      saveLocal();
+      renderControls();
+      rerender();
+    }
+    await push();
+  }
+
+  if (sb) {
+    sb.auth.onAuthStateChange(function (event, session) {
+      var u = session ? session.user : null;
+      var changed = (u && u.id) !== (cloud.user && cloud.user.id);
+      cloud.user = u;
+      if (!u) cloud.status = 'idle';
+      if (u && changed) setTimeout(pull, 0); // run outside the auth callback
+      renderSyncPanel();
+    });
+    // pick up reviews done on another device when coming back to this tab
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && cloud.user) pull();
+    });
+  }
 
   // ─────────────────────────── Helpers ───────────────────────────
   function esc(s) {
@@ -362,7 +441,8 @@
             '</select></div>' +
           '</section>' +
           '<section class="panel side"><h2>Your progress</h2>' +
-            '<p class="muted small" style="margin:0 0 12px">Saved automatically in this browser. Export a backup to keep it safe or move it to another device.</p>' +
+            '<div id="sync-panel"></div>' +
+            '<p class="muted small" style="margin:16px 0 10px">Backup file</p>' +
             '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
               '<button class="btn" id="export">Export backup</button>' +
               '<button class="btn" id="import">Import</button>' +
@@ -379,6 +459,82 @@
     $('#export').addEventListener('click', exportData);
     $('#import').addEventListener('click', function () { $('#import-file').click(); });
     $('#import-file').addEventListener('change', importData);
+    renderSyncPanel();
+  }
+
+  function renderSyncPanel() {
+    var el = $('#sync-panel');
+    if (!el) return;
+    var emailEl = $('#auth-email');
+    if (emailEl) cloud.email = emailEl.value;
+
+    if (!sb) {
+      el.innerHTML = '<p class="muted small" style="margin:0">Online sync isn’t reachable right now (no internet?). Progress is still saved in this browser.</p>';
+      return;
+    }
+    if (cloud.user) {
+      var line = cloud.status === 'saving' ? 'Syncing…' :
+        cloud.status === 'error' ? 'Sync failed: ' + cloud.msg :
+        cloud.last ? 'Synced at ' + new Date(cloud.last).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Connected';
+      el.innerHTML = '<p class="small" style="margin:0 0 4px">Saved online to <strong>' + esc(cloud.user.email || 'your account') + '</strong></p>' +
+        '<p class="small ' + (cloud.status === 'error' ? '' : 'muted') + '" style="margin:0 0 12px">' + esc(line) + '</p>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn" id="sync-now">Sync now</button>' +
+          '<button class="btn" id="sign-out">Sign out</button>' +
+        '</div>';
+      $('#sync-now').addEventListener('click', pull);
+      $('#sign-out').addEventListener('click', async function () {
+        await sb.auth.signOut();
+        cloud.user = null; cloud.last = null; renderSyncPanel();
+        toast('Signed out. Progress stays in this browser.');
+      });
+      return;
+    }
+    el.innerHTML = '<p class="muted small" style="margin:0 0 12px">Sign in to save your progress online and use it on any device.</p>' +
+      '<form id="auth-form" class="auth">' +
+        '<label>Email<input type="email" id="auth-email" autocomplete="email" required value="' + esc(cloud.email) + '"></label>' +
+        '<label>Password<input type="password" id="auth-pw" autocomplete="current-password" minlength="6" required></label>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn primary" type="submit">Sign in</button>' +
+          '<button class="btn" type="button" id="sign-up">Create account</button>' +
+        '</div>' +
+        (cloud.msg ? '<p class="small" id="auth-msg" style="margin:0">' + esc(cloud.msg) + '</p>' : '') +
+      '</form>';
+    $('#auth-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      cloud.email = $('#auth-email').value.trim();
+      var pw = $('#auth-pw').value;
+      setAuthMsg('Signing in…');
+      try {
+        var res = await sb.auth.signInWithPassword({ email: cloud.email, password: pw });
+        cloud.msg = !res.error ? '' :
+          /confirm/i.test(res.error.message) ? 'Please click the link in the confirmation email first.' :
+          /fetch|network/i.test(res.error.message) ? 'Could not reach the server. Check your internet connection.' :
+          'Sign-in failed: ' + res.error.message;
+      } catch (err) { cloud.msg = 'Could not reach the server. Check your internet connection.'; }
+      renderSyncPanel();
+    });
+    $('#sign-up').addEventListener('click', async function () {
+      var form = $('#auth-form');
+      if (!form.reportValidity()) return;
+      cloud.email = $('#auth-email').value.trim();
+      var pw = $('#auth-pw').value;
+      setAuthMsg('Creating your account…');
+      try {
+        var res = await sb.auth.signUp({ email: cloud.email, password: pw });
+        if (res.error) cloud.msg = 'Could not create the account: ' + res.error.message;
+        else if (!res.data.session) cloud.msg = 'Account created. Open the confirmation email and click the link (the page it opens may show an error — that’s fine), then come back here and sign in.';
+        else cloud.msg = '';
+      } catch (err) { cloud.msg = 'Could not reach the server. Check your internet connection.'; }
+      renderSyncPanel();
+    });
+  }
+  function setAuthMsg(text) {
+    var form = $('#auth-form');
+    if (!form) return;
+    var p = $('#auth-msg') || form.appendChild(Object.assign(document.createElement('p'), { id: 'auth-msg', className: 'small' }));
+    p.style.margin = '0';
+    p.textContent = text;
   }
   function tile(label, num, sub) {
     return '<div class="tile"><div class="muted small">' + esc(label) + '</div><div class="num">' + num + '</div><div class="muted small">' + esc(sub) + '</div></div>';
@@ -403,7 +559,8 @@
         var data = JSON.parse(r.result);
         if (!data || typeof data.cards !== 'object') throw new Error('bad');
         if (!confirm('Replace your current progress with this backup?')) return;
-        state = normalise(data); save(); renderControls(); viewDashboard();
+        state = normalise(data); state.savedAt = Date.now(); saveLocal(); renderControls(); viewDashboard();
+        push(); // the imported backup replaces the online copy too
         toast('Progress imported.');
       } catch (err) { toast('That file is not a valid backup.'); }
     };

@@ -102,6 +102,9 @@ button { cursor: pointer; }
 .tricky .ar { font-size: 26px; }
 .dashed { border-style: dashed; border-color: #bbbbbb; }
 .field { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; flex-wrap: wrap; }
+.auth { display: flex; flex-direction: column; gap: 12px; }
+.auth label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.auth input { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; font-size: 16px; }
 .field select { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: #fff; }
 
 /* ── Study ── */
