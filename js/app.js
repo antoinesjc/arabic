@@ -34,7 +34,7 @@
   function load() {
     try {
       var raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return clone(DEFAULT_STATE);
+      if (!raw) return normalise({});
       return normalise(JSON.parse(raw));
     } catch (e) {
       return clone(DEFAULT_STATE);
@@ -48,7 +48,7 @@
     base.log = s.log && typeof s.log === 'object' ? s.log : {};
     base.introduced = s.introduced && typeof s.introduced === 'object' ? s.introduced : {};
     base.savedAt = s.savedAt || 0;
-    base.citySeen = s.citySeen || 0; // how many city landmarks have already been shown (to animate new ones)
+    base.cityShown = Array.isArray(s.cityShown) ? s.cityShown : []; // city pieces already shown (new ones rise in)
     return base;
   }
 
@@ -392,7 +392,10 @@
     var newLeft = Math.min(Math.max(0, state.settings.newPerDay - introducedToday()), WORDS.length - started);
     var acc = accuracy7();
     var hour = new Date().getHours();
-    var greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    // Arabic greeting: صباح الخير in the morning, مساء الخير from noon on
+    var greetAr = (hour < 12 ? 'صَبَاحُ الْخَيْرِ' : 'مَسَاءُ الْخَيْرِ') + ' يَا أنطوان';
+    var greetTr = (hour < 12 ? 'ṣabāḥu l-khayri' : 'masāʾu l-khayri') + ' yā Anṭwān';
+    var greetEn = hour < 12 ? 'Good morning, Antoine' : hour < 18 ? 'Good afternoon, Antoine' : 'Good evening, Antoine';
 
     var themes = THEMES.map(function (t) {
       var ws = WORDS.filter(function (w) { return w.theme === t.id; });
@@ -418,7 +421,9 @@
     view.innerHTML = '' +
       '<div class="stack" style="gap:28px">' +
         '<div class="hello"><div><div class="muted small">' + esc(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })) + '</div>' +
-          '<h1>' + greet + ', Antoine</h1></div>' +
+          '<h1 class="greet"><span class="ar" lang="ar">' + ar(greetAr) + '</span>' +
+            '<button class="btn icon-btn greet-listen" data-speak="' + esc(greetAr) + '" aria-label="Listen to the greeting">' + speakerIcon() + '</button></h1>' +
+          '<div class="muted small"><em>' + esc(greetTr) + '</em> · ' + esc(greetEn) + '</div></div>' +
           '<a class="btn primary big" href="#/study">' + esc(startLabel) + '</a></div>' +
         cityHTML(learned, started) +
         '<div class="tiles">' +
@@ -545,20 +550,22 @@
   function cityHTML(learned, started) {
     if (!window.CITY) return '';
     var words = Math.floor(learned + (started - learned) * 0.5);
-    var r = window.CITY.render(words, { preview: cityPreview, newFrom: cityPreview ? null : state.citySeen });
-    if (!cityPreview && r.unlocked !== state.citySeen) { state.citySeen = r.unlocked; save(); }
+    var r = window.CITY.render(words, { seen: state.cityShown });               // your real city (and its counts)
+    var shown = cityPreview ? window.CITY.render(words, { preview: true }) : r; // what the picture shows
+    if (!cityPreview && r.visible.join() !== state.cityShown.join()) { state.cityShown = r.visible; save(); }
     var pct = Math.min(100, (words / window.CITY.FLUENT_WORDS) * 100);
     var status = cityPreview
       ? 'Preview: your city at fluency (about ' + window.CITY.FLUENT_WORDS.toLocaleString() + ' words).'
       : (r.last ? 'Latest: ' + r.last.name + '. ' : 'An empty desert, for now. ') +
-        (r.next ? 'Next: ' + r.next.name + ' at ' + r.next.at.toLocaleString() + ' words.' : '');
+        (r.next ? 'Next: ' + r.next.name + ' at ' + r.next.at.toLocaleString() + ' words.' : '') +
+        (r.building.length ? ' Under construction: ' + r.building.map(function (b) { return b.name + ' (' + b.pct + '%)'; }).join(', ') + '.' : '');
     return '<section class="panel city">' +
-      '<div class="city-frame">' + r.svg + '</div>' +
+      '<div class="city-frame">' + shown.svg + '</div>' +
       '<div class="city-info">' +
         '<h2>Your city</h2>' +
         '<div class="city-num">' + words.toLocaleString() + '<small> / ' + window.CITY.FLUENT_WORDS.toLocaleString() + ' words</small></div>' +
         '<div class="bar" role="img" aria-label="' + pct.toFixed(1) + '% to fluency"><div style="width:' + pct + '%"></div></div>' +
-        '<div class="muted small">' + (pct < 1 && pct > 0 ? pct.toFixed(1) : Math.round(pct)) + '% of the way to fluency · ' + r.unlocked + ' of ' + r.total + ' landmarks</div>' +
+        '<div class="muted small">' + (pct < 1 && pct > 0 ? pct.toFixed(1) : Math.round(pct)) + '% of the way to fluency · ' + r.unlocked + ' of ' + r.total + ' levels</div>' +
         '<p style="margin:4px 0 0">' + esc(status) + '</p>' +
         '<p class="muted small" style="margin:0">Learned words count fully, words you’re still learning count half.</p>' +
         '<div><button class="btn" id="city-preview" aria-pressed="' + cityPreview + '">' + (cityPreview ? 'Back to my city' : 'Preview the fluent city') + '</button></div>' +

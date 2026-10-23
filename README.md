@@ -12,6 +12,9 @@ Download or clone the repo and open `index.html` in your browser. There is no se
   A new word is first shown Arabic → English; once you pass it, the English → Arabic card joins the deck.
   Rate each card *Again / Hard / Good / Easy* and the app schedules the next review.
 - **Words**: all 100 words by theme, searchable; click one for its full card.
+- **Your city** (dashboard): a desert that grows into a Dubai-style skyline over 40 levels as your vocabulary grows.
+  Skyscrapers start going up under cranes at 600 words; the city is finished at about 5,000 words (fluency, ≈ B2–C1).
+  Learned words count fully, words still being learned count half. Levels are defined in `js/city.js`.
 
 Keyboard: `Space` reveal · `1`–`4` rate · `P` listen · `T` transliteration (Arabic → English cards).
 
