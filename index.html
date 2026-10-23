@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arabic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/dashboard" aria-label="Arabic — dashboard">
+      <span class="ar brand-ar" data-ar="عَرَبِي"></span>
+      <span class="brand-en">Arabic</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/dashboard" data-nav="dashboard">Dashboard</a>
+      <a href="#/study" data-nav="study">Study</a>
+      <a href="#/words" data-nav="words">Words</a>
+    </nav>
+    <div class="controls">
+      <label class="toggle">
+        <input type="checkbox" id="toggle-h">
+        Show diacritics
+      </label>
+      <div class="swatches" role="group" aria-label="Diacritic colour" id="swatches"></div>
+    </div>
+  </header>
+
+  <main id="view" class="view" tabindex="-1"></main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/words.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
