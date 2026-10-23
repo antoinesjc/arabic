@@ -1,6 +1,7 @@
 # Arabic
 
-A personal flashcard app for learning Modern Standard Arabic, starting with 100 core words (no particles or conjunctions yet).
+A personal flashcard app for learning Modern Standard Arabic, starting with 100 core words (no particles or conjunctions yet)
+and a module of 40 **words you already know**: Arabic words that live on in English, French and Spanish.
 Every word comes with full diacritics, transliteration, gender/plural or present-tense form, its root, and a sample sentence with a word-by-word breakdown.
 
 ## Use it
@@ -11,7 +12,7 @@ Download or clone the repo and open `index.html` in your browser. There is no se
 - **Study**: spaced-repetition flashcards that mix Arabic → English and English → Arabic.
   A new word is first shown Arabic → English; once you pass it, the English → Arabic card joins the deck.
   Rate each card *Again / Hard / Good / Easy* and the app schedules the next review.
-- **Words**: all 100 words by theme, searchable; click one for its full card.
+- **Words**: all words by theme, searchable (also by their English, French or Spanish relative); click one for its full card.
 - **Your city** (dashboard): a desert that grows into a Dubai-style skyline over 40 levels as your vocabulary grows.
   Skyscrapers start going up under cranes at 600 words; the city is finished at about 5,000 words (fluency, ≈ B2–C1).
   Learned words count fully, words still being learned count half. Levels are defined in `js/city.js`.
@@ -42,7 +43,8 @@ Settings → Time & language → Speech if there is none.
 ## Files
 
 - `index.html`, `styles.css` — page and look
-- `js/words.js` — the 100 words, sentences and breakdowns (add new decks here)
+- `js/words.js` — the 100 core words, sentences and breakdowns
+- `js/cognates.js` — the “words you already know” module (same format, plus the related EN/FR/ES words)
 - `js/app.js` — dashboard, study session, scheduling, storage
 
 The diacritics are coloured by drawing two layers: the vowelled text in colour and the bare letters in black on top,

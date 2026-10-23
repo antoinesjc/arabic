@@ -156,6 +156,13 @@
     return '<span class="arx">' + esc(text) + '<span class="arx-top" aria-hidden="true">' + esc(bare) + '</span></span>';
   }
 
+  // Mixed English/Arabic text (breakdown notes): colour the diacritics of each Arabic run only.
+  function arMixed(text) {
+    return String(text).split(/([\u0600-\u06FF]+(?:\s+[\u0600-\u06FF]+)*)/).map(function (part, i) {
+      return i % 2 ? '<span class="ar-inline" dir="rtl">' + ar(part) + '</span>' : esc(part);
+    }).join('');
+  }
+
   function dayKey(t) {
     var d = new Date(t == null ? Date.now() : t);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -352,7 +359,7 @@
     var rows = w.p.map(function (r) {
       return '<div class="bd-row"><span class="ar" lang="ar">' + ar(r[0]) + '</span>' +
         '<span class="tr">' + esc(r[1]) + '</span>' +
-        '<span><strong>' + esc(r[2]) + '</strong><span class="note">' + ar(r[3]) + '</span></span></div>';
+        '<span><strong>' + esc(r[2]) + '</strong><span class="note">' + arMixed(r[3]) + '</span></span></div>';
     }).join('');
 
     return '' +
@@ -361,6 +368,9 @@
         '<div class="translit">' + esc(w.tr) + '</div>' +
         '<div class="meaning">' + esc(w.en) + '</div>' +
         '<div class="pills">' + pills.join('') + '</div>' +
+        (w.cog ? '<div class="cog"><span class="label">Sounds familiar</span><div class="pills">' +
+          w.cog.map(function (c) { return '<span class="pill cog-pill"><b>' + esc(c[0]) + '</b> ' + esc(c[1]) + '</span>'; }).join('') + '</div>' +
+          (w.cogNote ? '<p class="muted small" style="margin:0">' + esc(w.cogNote) + '</p>' : '') + '</div>' : '') +
         '<button class="btn icon-btn" data-speak="' + esc(w.ar) + '" aria-label="Play pronunciation">' + speakerIcon() + ' Listen</button>' +
       '</div>' +
       '<div class="divider"></div>' +
@@ -433,7 +443,7 @@
           tile('Accuracy, last 7 days', acc == null ? '—' : acc + '%', 'answers not marked “Again”') +
         '</div>' +
         '<div class="row">' +
-          '<section class="panel grow"><h2>Top 100 words by theme</h2>' + themes + '</section>' +
+          '<section class="panel grow"><h2>Words by theme</h2>' + themes + '</section>' +
           '<section class="panel side"><h2>Trickiest words</h2>' + trickyHTML + '</section>' +
         '</div>' +
         '<div class="row">' +
@@ -744,7 +754,7 @@
   var wordQuery = '';
   function viewWords() {
     view.innerHTML = '<div class="stack">' +
-      '<input class="search" id="q" type="search" placeholder="Search in English, Arabic or transliteration" aria-label="Search words" value="' + esc(wordQuery) + '">' +
+      '<input class="search" id="q" type="search" placeholder="Search in English, French, Spanish, Arabic or transliteration" aria-label="Search words" value="' + esc(wordQuery) + '">' +
       '<div class="legend"><span><i class="dot"></i> new</span><span><i class="dot learning"></i> learning</span><span><i class="dot learned"></i> learned</span></div>' +
       '<div id="wgroups" class="stack"></div></div>';
     $('#q').addEventListener('input', function (e) { wordQuery = e.target.value; renderWordGroups(); });
@@ -757,7 +767,8 @@
       var ws = WORDS.filter(function (w) {
         if (w.theme !== t.id) return false;
         if (!q) return true;
-        return w.en.toLowerCase().indexOf(q) > -1 || w.tr.toLowerCase().indexOf(q) > -1 || strip(w.ar).indexOf(qs) > -1;
+        return w.en.toLowerCase().indexOf(q) > -1 || w.tr.toLowerCase().indexOf(q) > -1 || strip(w.ar).indexOf(qs) > -1 ||
+          (w.cog || []).some(function (c) { return c[1].toLowerCase().indexOf(q) > -1; });
       });
       if (!ws.length) return '';
       return '<section class="wgroup"><h2>' + esc(t.label) + '</h2><div class="wlist">' + ws.map(function (w) {
