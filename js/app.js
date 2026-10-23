@@ -48,6 +48,7 @@
     base.log = s.log && typeof s.log === 'object' ? s.log : {};
     base.introduced = s.introduced && typeof s.introduced === 'object' ? s.introduced : {};
     base.savedAt = s.savedAt || 0;
+    base.citySeen = s.citySeen || 0; // how many city landmarks have already been shown (to animate new ones)
     return base;
   }
 
@@ -419,6 +420,7 @@
         '<div class="hello"><div><div class="muted small">' + esc(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })) + '</div>' +
           '<h1>' + greet + ', Antoine</h1></div>' +
           '<a class="btn primary big" href="#/study">' + esc(startLabel) + '</a></div>' +
+        cityHTML(learned, started) +
         '<div class="tiles">' +
           tile('Words learned', learned + '<small> / ' + WORDS.length + '</small>', started + ' started') +
           tile('Due today', due, newLeft + ' new words available') +
@@ -454,6 +456,8 @@
           '<p class="muted" style="margin:0">Space for what comes next: matching game, typing drill, alphabet trainer…</p></section>' +
       '</div>';
 
+    var pv = $('#city-preview');
+    if (pv) pv.addEventListener('click', function () { cityPreview = !cityPreview; viewDashboard(); });
     $('#set-dir').addEventListener('change', function (e) { state.settings.direction = e.target.value; save(); viewDashboard(); });
     $('#set-new').addEventListener('change', function (e) { state.settings.newPerDay = parseInt(e.target.value, 10); save(); viewDashboard(); });
     $('#export').addEventListener('click', exportData);
@@ -535,6 +539,27 @@
     var p = $('#auth-msg') || form.appendChild(Object.assign(document.createElement('p'), { id: 'auth-msg', className: 'small' }));
     p.style.margin = '0';
     p.textContent = text;
+  }
+  // The growing city: learned words count fully, words still being learned count half.
+  var cityPreview = false;
+  function cityHTML(learned, started) {
+    if (!window.CITY) return '';
+    var words = Math.floor(learned + (started - learned) * 0.5);
+    var r = window.CITY.render(words, { preview: cityPreview, newFrom: cityPreview ? null : state.citySeen });
+    if (!cityPreview && r.unlocked !== state.citySeen) { state.citySeen = r.unlocked; save(); }
+    var pct = Math.min(100, (words / window.CITY.FLUENT_WORDS) * 100);
+    var status = cityPreview
+      ? 'Preview: your city at fluency (about ' + window.CITY.FLUENT_WORDS.toLocaleString() + ' words).'
+      : (r.last ? 'Latest: ' + r.last.name + '. ' : 'An empty desert, for now. ') +
+        (r.next ? 'Next: ' + r.next.name + ' at ' + r.next.at.toLocaleString() + ' words.' : '');
+    return '<section class="panel city">' +
+      '<div class="city-head"><h2>Your city</h2>' +
+        '<button class="btn" id="city-preview" aria-pressed="' + cityPreview + '">' + (cityPreview ? 'Back to my city' : 'Preview the fluent city') + '</button></div>' +
+      '<div class="city-frame">' + r.svg + '</div>' +
+      '<div class="city-foot"><span>' + esc(status) + '</span>' +
+        '<span class="muted">' + words.toLocaleString() + ' / ' + window.CITY.FLUENT_WORDS.toLocaleString() + ' words · ' + (pct < 1 && pct > 0 ? pct.toFixed(1) : Math.round(pct)) + '% to fluency</span></div>' +
+      '<div class="bar" role="img" aria-label="' + pct.toFixed(1) + '% to fluency"><div style="width:' + pct + '%"></div></div>' +
+    '</section>';
   }
   function tile(label, num, sub) {
     return '<div class="tile"><div class="muted small">' + esc(label) + '</div><div class="num">' + num + '</div><div class="muted small">' + esc(sub) + '</div></div>';
