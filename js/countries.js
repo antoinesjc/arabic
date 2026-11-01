@@ -1,0 +1,188 @@
+/*
+  Theme: Arabic-speaking countries — the 22 member states of the Arab League, grouped by region.
+  Same format as words.js, plus an optional `note`.
+  Grammar reminder used in the notes: many country names never take the -un/-in endings (مِصْرُ، فِي مِصْرَ),
+  names ending in ـَا or ـِي never change, and names with ال behave like normal nouns.
+*/
+window.THEMES.push({ id: 'countries', label: 'Arabic-speaking countries' });
+
+window.WORDS.push(
+  // ── The Levant ──
+  { id: 'c-syria', theme: 'countries', ar: 'سُورِيَا', tr: 'sūriyā', en: 'Syria', pos: 'country · feminine',
+    forms: [['nationality', 'سُورِيّ', 'sūrī'], ['capital', 'دِمَشْق', 'dimashq']], root: '—',
+    s: { ar: 'دِمَشْقُ عَاصِمَةُ سُورِيَا.', tr: 'dimashqu ʿāṣimatu sūriyā.', en: 'Damascus is the capital of Syria.' },
+    p: [['دِمَشْقُ', 'dimashqu', 'Damascus', 'a name: no -un ending; in speech also الشَّام'],
+        ['عَاصِمَةُ', 'ʿāṣimatu', 'the capital (of)', 'no word for “is” needed'],
+        ['سُورِيَا', 'sūriyā', 'Syria', 'names ending in ـَا never change']] },
+
+  { id: 'c-lebanon', theme: 'countries', ar: 'لُبْنَان', tr: 'lubnān', en: 'Lebanon', pos: 'country · masculine',
+    forms: [['nationality', 'لُبْنَانِيّ', 'lubnānī'], ['capital', 'بَيْرُوت', 'bayrūt']], root: 'ل ب ن',
+    s: { ar: 'فِي لُبْنَانَ جِبَالٌ عَالِيَةٌ.', tr: 'fī lubnāna jibālun ʿāliyatun.', en: 'There are high mountains in Lebanon.' },
+    p: [['فِي', 'fī', 'in', 'place first = “there is / are …”'],
+        ['لُبْنَانَ', 'lubnāna', 'Lebanon', 'takes ـَ instead of ـِ after a preposition (names ending in -ān)'],
+        ['جِبَالٌ', 'jibālun', 'mountains', 'plural of جَبَل'],
+        ['عَالِيَةٌ', 'ʿāliyatun', 'high', 'plurals of things take a feminine singular adjective']] },
+
+  { id: 'c-jordan', theme: 'countries', ar: 'الْأُرْدُنّ', tr: 'al-urdunn', en: 'Jordan', pos: 'country · masculine',
+    forms: [['nationality', 'أُرْدُنِيّ', 'urdunī'], ['capital', 'عَمَّان', 'ʿammān']], root: '—',
+    s: { ar: 'عَاصِمَةُ الْأُرْدُنِّ عَمَّانُ.', tr: 'ʿāṣimatu l-urdunni ʿammānu.', en: 'The capital of Jordan is Amman.' },
+    p: [['عَاصِمَةُ', 'ʿāṣimatu', 'the capital (of)', 'first noun of a pair: no ال, no -un'],
+        ['الْأُرْدُنِّ', 'l-urdunni', 'Jordan', 'the name includes ال; also the river Jordan'],
+        ['عَمَّانُ', 'ʿammānu', 'Amman', 'doubled m — not عُمَان ʿumān, Oman']] },
+
+  { id: 'c-palestine', theme: 'countries', ar: 'فِلَسْطِين', tr: 'filasṭīn', en: 'Palestine', pos: 'country · feminine',
+    forms: [['nationality', 'فِلَسْطِينِيّ', 'filasṭīnī']], root: '—',
+    s: { ar: 'يَزْرَعُ النَّاسُ الزَّيْتُونَ فِي فِلَسْطِينَ مُنْذُ آلَافِ السِّنِينَ.', tr: 'yazraʿu n-nāsu z-zaytūna fī filasṭīna mundhu ālāfi s-sinīna.', en: 'People have grown olives in Palestine for thousands of years.' },
+    p: [['يَزْرَعُ', 'yazraʿu', 'grow', 'a verb placed first stays singular'],
+        ['النَّاسُ', 'n-nāsu', 'people', 'subject'],
+        ['الزَّيْتُونَ', 'z-zaytūna', 'olives', 'object'],
+        ['فِي فِلَسْطِينَ', 'fī filasṭīna', 'in Palestine', 'takes ـَ instead of ـِ'],
+        ['مُنْذُ', 'mundhu', 'for, since', 'with the present = “have been … for”'],
+        ['آلَافِ السِّنِينَ', 'ālāfi s-sinīna', 'thousands of years', 'آلَاف is the plural of أَلْف “thousand”']] },
+
+  // ── Iraq and the Gulf ──
+  { id: 'c-iraq', theme: 'countries', ar: 'الْعِرَاق', tr: 'al-ʿirāq', en: 'Iraq', pos: 'country · masculine',
+    forms: [['nationality', 'عِرَاقِيّ', 'ʿirāqī'], ['capital', 'بَغْدَاد', 'baghdād']], root: '—',
+    s: { ar: 'يَجْرِي نَهْرَانِ كَبِيرَانِ فِي الْعِرَاقِ.', tr: 'yajrī nahrāni kabīrāni fī l-ʿirāqi.', en: 'Two great rivers flow through Iraq.' },
+    p: [['يَجْرِي', 'yajrī', 'flow', 'lit. “runs”'],
+        ['نَهْرَانِ', 'nahrāni', 'two rivers', '-āni = two; the Tigris (دِجْلَة) and the Euphrates (الْفُرَات)'],
+        ['كَبِيرَانِ', 'kabīrāni', 'great', 'the adjective is dual too'],
+        ['فِي الْعِرَاقِ', 'fī l-ʿirāqi', 'in Iraq', 'the name includes ال']] },
+
+  { id: 'c-saudi', theme: 'countries', ar: 'السُّعُودِيَّة', tr: 'as-suʿūdiyya', en: 'Saudi Arabia', pos: 'country · feminine',
+    forms: [['nationality', 'سُعُودِيّ', 'suʿūdī'], ['capital', 'الرِّيَاض', 'ar-riyāḍ']], root: '—',
+    s: { ar: 'الرِّيَاضُ أَكْبَرُ مَدِينَةٍ فِي السُّعُودِيَّةِ.', tr: 'ar-riyāḍu akbaru madīnatin fī s-suʿūdiyyati.', en: 'Riyadh is the biggest city in Saudi Arabia.' },
+    p: [['الرِّيَاضُ', 'ar-riyāḍu', 'Riyadh', 'the capital; lit. “the gardens”'],
+        ['أَكْبَرُ مَدِينَةٍ', 'akbaru madīnatin', 'the biggest city', 'أَكْبَر + indefinite noun = “the biggest …”'],
+        ['فِي السُّعُودِيَّةِ', 'fī s-suʿūdiyyati', 'in Saudi Arabia', 'short for الْمَمْلَكَة الْعَرَبِيَّة السُّعُودِيَّة']] },
+
+  { id: 'c-uae', theme: 'countries', ar: 'الْإِمَارَات', tr: 'al-imārāt', en: 'United Arab Emirates', pos: 'country · plural (treated as feminine)',
+    forms: [['nationality', 'إِمَارَاتِيّ', 'imārātī'], ['capital', 'أَبُو ظَبْي', 'abū ẓabī']], root: 'أ م ر',
+    s: { ar: 'عَاصِمَةُ الْإِمَارَاتِ أَبُو ظَبْي، وَلَيْسَتْ دُبَيّ.', tr: 'ʿāṣimatu l-imārāti abū ẓabī, wa-laysat dubayy.', en: 'The capital of the Emirates is Abu Dhabi, not Dubai.' },
+    p: [['عَاصِمَةُ', 'ʿāṣimatu', 'the capital (of)', ''],
+        ['الْإِمَارَاتِ', 'l-imārāti', 'the Emirates', 'plural of إِمَارَة “emirate”; same root as أَمِير'],
+        ['أَبُو ظَبْي', 'abū ẓabī', 'Abu Dhabi', 'lit. “father of the gazelle”'],
+        ['وَلَيْسَتْ', 'wa-laysat', 'and (it) is not', 'feminine of لَيْسَ'],
+        ['دُبَيّ', 'dubayy', 'Dubai', 'the biggest city of the Emirates']] },
+
+  { id: 'c-qatar', theme: 'countries', ar: 'قَطَر', tr: 'qaṭar', en: 'Qatar', pos: 'country · feminine',
+    forms: [['nationality', 'قَطَرِيّ', 'qaṭarī'], ['capital', 'الدَّوْحَة', 'ad-dawḥa']], root: '—',
+    s: { ar: 'تَقَعُ قَطَرُ عَلَى الْخَلِيجِ.', tr: 'taqaʿu qaṭaru ʿalā l-khalīji.', en: 'Qatar lies on the Gulf.' },
+    p: [['تَقَعُ', 'taqaʿu', 'lies, is located', 'تَـ because the country is feminine'],
+        ['قَطَرُ', 'qaṭaru', 'Qatar', 'a name: no -un'],
+        ['عَلَى الْخَلِيجِ', 'ʿalā l-khalīji', 'on the Gulf', 'الْخَلِيج = “the Gulf”']] },
+
+  { id: 'c-kuwait', theme: 'countries', ar: 'الْكُوَيْت', tr: 'al-kuwayt', en: 'Kuwait', pos: 'country · feminine',
+    forms: [['nationality', 'كُوَيْتِيّ', 'kuwaytī'], ['capital', 'الْكُوَيْت', 'al-kuwayt']], root: '—',
+    s: { ar: 'عَاصِمَةُ الْكُوَيْتِ اسْمُهَا الْكُوَيْتُ أَيْضًا.', tr: 'ʿāṣimatu l-kuwayti smuhā l-kuwaytu ayḍan.', en: 'The capital of Kuwait is also called Kuwait.' },
+    p: [['عَاصِمَةُ الْكُوَيْتِ', 'ʿāṣimatu l-kuwayti', 'the capital of Kuwait', 'the topic of the sentence'],
+        ['اسْمُهَا', 'smuhā', 'its name', 'ـهَا = its (for a feminine noun)'],
+        ['الْكُوَيْتُ', 'l-kuwaytu', 'Kuwait', 'lit. “the little fort”'],
+        ['أَيْضًا', 'ayḍan', 'also', '']] },
+
+  { id: 'c-bahrain', theme: 'countries', ar: 'الْبَحْرَيْن', tr: 'al-baḥrayn', en: 'Bahrain', pos: 'country · feminine',
+    forms: [['nationality', 'بَحْرَيْنِيّ', 'baḥraynī'], ['capital', 'الْمَنَامَة', 'al-manāma']], root: 'ب ح ر',
+    s: { ar: 'تَقَعُ الْمَنَامَةُ فِي الْبَحْرَيْنِ.', tr: 'taqaʿu l-manāmatu fī l-baḥrayni.', en: 'Manama is in Bahrain.' },
+    p: [['تَقَعُ', 'taqaʿu', 'is located', 'feminine verb for a city'],
+        ['الْمَنَامَةُ', 'l-manāmatu', 'Manama', 'the capital'],
+        ['فِي الْبَحْرَيْنِ', 'fī l-baḥrayni', 'in Bahrain', 'lit. “the two seas” — dual of بَحْر']] },
+
+  { id: 'c-oman', theme: 'countries', ar: 'عُمَان', tr: 'ʿumān', en: 'Oman', pos: 'country · feminine',
+    forms: [['nationality', 'عُمَانِيّ', 'ʿumānī'], ['capital', 'مَسْقَط', 'masqaṭ']], root: '—',
+    s: { ar: 'لَا تَخْلِطْ بَيْنَ عُمَانَ وَعَمَّانَ!', tr: 'lā takhliṭ bayna ʿumāna wa-ʿammāna!', en: 'Don’t mix up Oman and Amman!' },
+    p: [['لَا تَخْلِطْ', 'lā takhliṭ', 'don’t mix up', 'لَا + verb ending in ـْ = “don’t!”'],
+        ['بَيْنَ', 'bayna', 'between', ''],
+        ['عُمَانَ', 'ʿumāna', 'Oman', 'short u, single m'],
+        ['وَعَمَّانَ', 'wa-ʿammāna', 'and Amman', 'doubled m: the capital of Jordan']] },
+
+  { id: 'c-yemen', theme: 'countries', ar: 'الْيَمَن', tr: 'al-yaman', en: 'Yemen', pos: 'country · masculine',
+    forms: [['nationality', 'يَمَنِيّ', 'yamanī'], ['capital', 'صَنْعَاء', 'ṣanʿāʾ']], root: 'ي م ن',
+    s: { ar: 'صَنْعَاءُ مَدِينَةٌ قَدِيمَةٌ فِي الْيَمَنِ.', tr: 'ṣanʿāʾu madīnatun qadīmatun fī l-yamani.', en: 'Sanaa is an old city in Yemen.' },
+    p: [['صَنْعَاءُ', 'ṣanʿāʾu', 'Sanaa', 'names ending in ـَاء take no -un'],
+        ['مَدِينَةٌ قَدِيمَةٌ', 'madīnatun qadīmatun', 'an old city', 'adjective after the noun'],
+        ['فِي الْيَمَنِ', 'fī l-yamani', 'in Yemen', 'the name includes ال']] },
+
+  // ── The Nile ──
+  { id: 'c-egypt', theme: 'countries', ar: 'مِصْر', tr: 'miṣr', en: 'Egypt', pos: 'country · feminine',
+    forms: [['nationality', 'مِصْرِيّ', 'miṣrī'], ['capital', 'الْقَاهِرَة', 'al-qāhira']], root: '—',
+    s: { ar: 'عَاصِمَةُ مِصْرَ هِيَ الْقَاهِرَةُ.', tr: 'ʿāṣimatu miṣra hiya l-qāhiratu.', en: 'The capital of Egypt is Cairo.' },
+    p: [['عَاصِمَةُ', 'ʿāṣimatu', 'the capital (of)', 'first noun of a pair'],
+        ['مِصْرَ', 'miṣra', 'Egypt', 'some names never take -in, so ـَ instead of ـِ'],
+        ['هِيَ', 'hiya', '(it) is', 'lit. “she”; links two nouns'],
+        ['الْقَاهِرَةُ', 'l-qāhiratu', 'Cairo', 'lit. “the victorious”']],
+    note: 'Egyptians themselves say maṣr.' },
+
+  { id: 'c-sudan', theme: 'countries', ar: 'السُّودَان', tr: 'as-sūdān', en: 'Sudan', pos: 'country · masculine',
+    forms: [['nationality', 'سُودَانِيّ', 'sūdānī'], ['capital', 'الْخَرْطُوم', 'al-kharṭūm']], root: '—',
+    s: { ar: 'يَلْتَقِي النِّيلُ الْأَبْيَضُ وَالْأَزْرَقُ فِي السُّودَانِ.', tr: 'yaltaqī n-nīlu l-abyaḍu wa-l-azraqu fī s-sūdāni.', en: 'The White Nile and the Blue Nile meet in Sudan.' },
+    p: [['يَلْتَقِي', 'yaltaqī', 'meet', 'a verb placed first stays singular'],
+        ['النِّيلُ الْأَبْيَضُ', 'n-nīlu l-abyaḍu', 'the White Nile', 'أَبْيَض = white'],
+        ['وَالْأَزْرَقُ', 'wa-l-azraqu', 'and the Blue (Nile)', 'أَزْرَق = blue'],
+        ['فِي السُّودَانِ', 'fī s-sūdāni', 'in Sudan', 'they meet at Khartoum']] },
+
+  // ── North Africa (the Maghreb) ──
+  { id: 'c-libya', theme: 'countries', ar: 'لِيبِيَا', tr: 'lībiyā', en: 'Libya', pos: 'country · feminine',
+    forms: [['nationality', 'لِيبِيّ', 'lībī'], ['capital', 'طَرَابُلُس', 'ṭarābulus']], root: '—',
+    s: { ar: 'مُعْظَمُ لِيبِيَا صَحْرَاءُ.', tr: 'muʿẓamu lībiyā ṣaḥrāʾu.', en: 'Most of Libya is desert.' },
+    p: [['مُعْظَمُ', 'muʿẓamu', 'most (of)', 'first noun of a pair'],
+        ['لِيبِيَا', 'lībiyā', 'Libya', 'never changes'],
+        ['صَحْرَاءُ', 'ṣaḥrāʾu', 'desert', 'takes no -un; gave the name Sahara']] },
+
+  { id: 'c-tunisia', theme: 'countries', ar: 'تُونِس', tr: 'tūnis', en: 'Tunisia', pos: 'country · feminine',
+    forms: [['nationality', 'تُونِسِيّ', 'tūnisī'], ['capital', 'تُونِس', 'tūnis']], root: '—',
+    s: { ar: 'تُونِسُ بَلَدٌ صَغِيرٌ فِي شَمَالِ أَفْرِيقْيَا.', tr: 'tūnisu baladun ṣaghīrun fī shamāli afrīqyā.', en: 'Tunisia is a small country in North Africa.' },
+    p: [['تُونِسُ', 'tūnisu', 'Tunisia', 'also the name of its capital, Tunis'],
+        ['بَلَدٌ صَغِيرٌ', 'baladun ṣaghīrun', 'a small country', 'بَلَد is masculine'],
+        ['فِي شَمَالِ', 'fī shamāli', 'in the north (of)', 'شَمَال = north'],
+        ['أَفْرِيقْيَا', 'afrīqyā', 'Africa', 'also spelled إِفْرِيقِيَا']] },
+
+  { id: 'c-algeria', theme: 'countries', ar: 'الْجَزَائِر', tr: 'al-jazāʾir', en: 'Algeria', pos: 'country · feminine',
+    forms: [['nationality', 'جَزَائِرِيّ', 'jazāʾirī'], ['capital', 'الْجَزَائِر', 'al-jazāʾir']], root: 'ج ز ر',
+    s: { ar: 'الْجَزَائِرُ أَكْبَرُ بَلَدٍ فِي أَفْرِيقْيَا.', tr: 'al-jazāʾiru akbaru baladin fī afrīqyā.', en: 'Algeria is the largest country in Africa.' },
+    p: [['الْجَزَائِرُ', 'al-jazāʾiru', 'Algeria', 'lit. “the islands”; also the capital, Algiers'],
+        ['أَكْبَرُ بَلَدٍ', 'akbaru baladin', 'the largest country', 'أَكْبَر + indefinite noun'],
+        ['فِي أَفْرِيقْيَا', 'fī afrīqyā', 'in Africa', '']] },
+
+  { id: 'c-morocco', theme: 'countries', ar: 'الْمَغْرِب', tr: 'al-maghrib', en: 'Morocco', pos: 'country · masculine',
+    forms: [['nationality', 'مَغْرِبِيّ', 'maghribī'], ['capital', 'الرِّبَاط', 'ar-ribāṭ']], root: 'غ ر ب',
+    s: { ar: 'يَتَكَلَّمُ النَّاسُ فِي الْمَغْرِبِ الْعَرَبِيَّةَ وَالْأَمَازِيغِيَّةَ.', tr: 'yatakallamu n-nāsu fī l-maghribi l-ʿarabiyyata wa-l-amāzīghiyyata.', en: 'In Morocco people speak Arabic and Amazigh.' },
+    p: [['يَتَكَلَّمُ', 'yatakallamu', 'speak', 'a verb placed first stays singular'],
+        ['النَّاسُ', 'n-nāsu', 'people', 'subject'],
+        ['فِي الْمَغْرِبِ', 'fī l-maghribi', 'in Morocco', 'lit. “the west, where the sun sets”'],
+        ['الْعَرَبِيَّةَ', 'l-ʿarabiyyata', 'Arabic', 'object'],
+        ['وَالْأَمَازِيغِيَّةَ', 'wa-l-amāzīghiyyata', 'and Amazigh', 'the Berber language, also official']] },
+
+  { id: 'c-mauritania', theme: 'countries', ar: 'مُورِيتَانْيَا', tr: 'mūrītānyā', en: 'Mauritania', pos: 'country · feminine',
+    forms: [['nationality', 'مُورِيتَانِيّ', 'mūrītānī'], ['capital', 'نُوَاكْشُوط', 'nuwākshūṭ']], root: '—',
+    s: { ar: 'نُوَاكْشُوطُ عَاصِمَةُ مُورِيتَانْيَا.', tr: 'nuwākshūṭu ʿāṣimatu mūrītānyā.', en: 'Nouakchott is the capital of Mauritania.' },
+    p: [['نُوَاكْشُوطُ', 'nuwākshūṭu', 'Nouakchott', 'a name: no -un'],
+        ['عَاصِمَةُ', 'ʿāṣimatu', 'the capital (of)', ''],
+        ['مُورِيتَانْيَا', 'mūrītānyā', 'Mauritania', 'never changes']] },
+
+  // ── The Horn of Africa and the Indian Ocean ──
+  { id: 'c-somalia', theme: 'countries', ar: 'الصُّومَال', tr: 'aṣ-ṣūmāl', en: 'Somalia', pos: 'country · masculine',
+    forms: [['nationality', 'صُومَالِيّ', 'ṣūmālī'], ['capital', 'مَقْدِيشُو', 'maqdīshū']], root: '—',
+    s: { ar: 'لِلصُّومَالِ سَاحِلٌ طَوِيلٌ جِدًّا.', tr: 'li-ṣ-ṣūmāli sāḥilun ṭawīlun jiddan.', en: 'Somalia has a very long coastline.' },
+    p: [['لِلصُّومَالِ', 'li-ṣ-ṣūmāli', 'Somalia has', 'لِـ = “to/for”, used to say something has …'],
+        ['سَاحِلٌ', 'sāḥilun', 'a coast', 'its plural سَوَاحِل gave the name Swahili'],
+        ['طَوِيلٌ', 'ṭawīlun', 'long', ''],
+        ['جِدًّا', 'jiddan', 'very', '']],
+    note: 'Arabic is an official language here alongside Somali.' },
+
+  { id: 'c-djibouti', theme: 'countries', ar: 'جِيبُوتِي', tr: 'jībūtī', en: 'Djibouti', pos: 'country · feminine',
+    forms: [['nationality', 'جِيبُوتِيّ', 'jībūtī'], ['capital', 'جِيبُوتِي', 'jībūtī']], root: '—',
+    s: { ar: 'جِيبُوتِي بَلَدٌ صَغِيرٌ عَلَى الْبَحْرِ الْأَحْمَرِ.', tr: 'jībūtī baladun ṣaghīrun ʿalā l-baḥri l-aḥmari.', en: 'Djibouti is a small country on the Red Sea.' },
+    p: [['جِيبُوتِي', 'jībūtī', 'Djibouti', 'never changes; also the capital'],
+        ['بَلَدٌ صَغِيرٌ', 'baladun ṣaghīrun', 'a small country', ''],
+        ['عَلَى الْبَحْرِ الْأَحْمَرِ', 'ʿalā l-baḥri l-aḥmari', 'on the Red Sea', 'أَحْمَر = red']],
+    note: 'Arabic is an official language here alongside French.' },
+
+  { id: 'c-comoros', theme: 'countries', ar: 'جُزُر الْقَمَر', tr: 'juzur al-qamar', en: 'Comoros', pos: 'country · plural (treated as feminine)',
+    forms: [['nationality', 'قُمُرِيّ', 'qumurī'], ['capital', 'مُورُونِي', 'mūrūnī']], root: 'ق م ر',
+    s: { ar: 'جُزُرُ الْقَمَرِ فِي الْمُحِيطِ الْهِنْدِيِّ.', tr: 'juzuru l-qamari fī l-muḥīṭi l-hindiyyi.', en: 'The Comoros are in the Indian Ocean.' },
+    p: [['جُزُرُ', 'juzuru', 'the islands (of)', 'plural of جَزِيرَة'],
+        ['الْقَمَرِ', 'l-qamari', 'the moon', '“Comoros” comes from قَمَر'],
+        ['فِي الْمُحِيطِ', 'fī l-muḥīṭi', 'in the ocean', ''],
+        ['الْهِنْدِيِّ', 'l-hindiyyi', 'Indian', 'adjective with ال, same ending as the noun']],
+    note: 'Arabic is an official language here alongside Comorian and French.' }
+);

@@ -1,7 +1,8 @@
 # Arabic
 
 A personal flashcard app for learning Modern Standard Arabic, starting with 100 core words (no particles or conjunctions yet)
-and a module of 40 **words you already know**: Arabic words that live on in English, French and Spanish.
+a module of 40 **words you already know** (Arabic words that live on in English, French and Spanish),
+and the 22 **Arabic-speaking countries** with their nationality adjective and capital.
 Every word comes with full diacritics, transliteration, gender/plural or present-tense form, its root, and a sample sentence with a word-by-word breakdown.
 
 ## Use it
@@ -50,6 +51,7 @@ Settings → Time & language → Speech if there is none.
 - `index.html`, `styles.css` — page and look
 - `js/words.js` — the 100 core words, sentences and breakdowns
 - `js/cognates.js` — the “words you already know” module (same format, plus the related EN/FR/ES words)
+- `js/countries.js` — the Arabic-speaking countries theme
 - `js/levantine.js` — the Levantine sentences (one per core word, linked by id)
 - `js/app.js` — dashboard, study session, scheduling, storage
 

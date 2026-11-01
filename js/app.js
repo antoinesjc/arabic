@@ -387,6 +387,7 @@
         (w.cog ? '<div class="cog"><span class="label">Sounds familiar</span><div class="pills">' +
           w.cog.map(function (c) { return '<span class="pill cog-pill"><b>' + esc(c[0]) + '</b> ' + esc(c[1]) + '</span>'; }).join('') + '</div>' +
           (w.cogNote ? '<p class="muted small" style="margin:0">' + esc(w.cogNote) + '</p>' : '') + '</div>' : '') +
+        (w.note ? '<p class="muted small" style="margin:0">' + arMixed(w.note) + '</p>' : '') +
         '<button class="btn icon-btn" data-speak="' + esc(w.ar) + '" aria-label="Play pronunciation">' + speakerIcon() + ' Listen</button>' +
       '</div>' +
       '<div class="divider"></div>' +
