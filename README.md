@@ -13,6 +13,11 @@ Download or clone the repo and open `index.html` in your browser. There is no se
   A new word is first shown Arabic → English; once you pass it, the English → Arabic card joins the deck.
   Rate each card *Again / Hard / Good / Easy* and the app schedules the next review.
 - **Words**: all words by theme, searchable (also by their English, French or Spanish relative); click one for its full card.
+- **Levantine**: spoken Arabic of Syria, Lebanon, Palestine and Jordan — one everyday sentence for each of the 100 core words,
+  with transliteration, a word-by-word breakdown, the key word next to its standard-Arabic form, and speaking tips.
+  A new sentence starts as *listen → understand*; once you pass it, a *say it out loud* card (English → Levantine) joins the deck.
+  “Record yourself” lets you play back your own pronunciation. Levantine progress is kept separately and does **not** count toward the city.
+  Audio prefers a Lebanese/Syrian/Jordanian voice when the browser has one (Microsoft Edge does).
 - **Your city** (dashboard): a desert that grows into a Dubai-style skyline over 40 levels as your vocabulary grows.
   Skyscrapers start going up under cranes at 600 words; the city is finished at about 5,000 words (fluency, ≈ B2–C1).
   Learned words count fully, words still being learned count half. Levels are defined in `js/city.js`.
@@ -45,6 +50,7 @@ Settings → Time & language → Speech if there is none.
 - `index.html`, `styles.css` — page and look
 - `js/words.js` — the 100 core words, sentences and breakdowns
 - `js/cognates.js` — the “words you already know” module (same format, plus the related EN/FR/ES words)
+- `js/levantine.js` — the Levantine sentences (one per core word, linked by id)
 - `js/app.js` — dashboard, study session, scheduling, storage
 
 The diacritics are coloured by drawing two layers: the vowelled text in colour and the bare letters in black on top,

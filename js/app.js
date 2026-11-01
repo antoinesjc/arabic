@@ -25,10 +25,11 @@
   // ─────────────────────────── State ───────────────────────────
   var DEFAULT_STATE = {
     version: 1,
-    settings: { showH: true, color: 'green', direction: 'mixed', newPerDay: 10 },
+    settings: { showH: true, color: 'green', direction: 'mixed', newPerDay: 10, lvNewPerDay: 5 },
     cards: {},      // "wordId:ar" | "wordId:en" → { reps, interval, ease, due, lapses, last }
     log: {},        // "YYYY-MM-DD" → { n, ok }
-    introduced: {}  // "YYYY-MM-DD" → number of new words started that day
+    introduced: {}, // "YYYY-MM-DD" → number of new words started that day
+    lv: { cards: {}, introduced: {} } // Levantine sentences: kept apart, never counted in the word count / city
   };
 
   function load() {
@@ -49,6 +50,8 @@
     base.introduced = s.introduced && typeof s.introduced === 'object' ? s.introduced : {};
     base.savedAt = s.savedAt || 0;
     base.cityShown = Array.isArray(s.cityShown) ? s.cityShown : []; // city pieces already shown (new ones rise in)
+    var lv = s.lv && typeof s.lv === 'object' ? s.lv : {};
+    base.lv = { cards: lv.cards && typeof lv.cards === 'object' ? lv.cards : {}, introduced: lv.introduced && typeof lv.introduced === 'object' ? lv.introduced : {} };
     return base;
   }
 
@@ -56,10 +59,18 @@
   function merge(a, b) {
     var newer = (b.savedAt || 0) > (a.savedAt || 0) ? b : a;
     var out = clone(newer);
-    out.cards = Object.assign({}, a.cards);
-    Object.keys(b.cards).forEach(function (k) {
-      if (!out.cards[k] || (b.cards[k].last || 0) > (out.cards[k].last || 0)) out.cards[k] = b.cards[k];
-    });
+    function mergeCards(x, y) {
+      var o = Object.assign({}, x);
+      Object.keys(y).forEach(function (k) { if (!o[k] || (y[k].last || 0) > (o[k].last || 0)) o[k] = y[k]; });
+      return o;
+    }
+    function mergeCounts(x, y) {
+      var o = Object.assign({}, x);
+      Object.keys(y).forEach(function (d) { o[d] = Math.max(o[d] || 0, y[d]); });
+      return o;
+    }
+    out.cards = mergeCards(a.cards, b.cards);
+    out.lv = { cards: mergeCards(a.lv.cards, b.lv.cards), introduced: mergeCounts(a.lv.introduced, b.lv.introduced) };
     out.log = Object.assign({}, a.log);
     Object.keys(b.log).forEach(function (d) {
       if (!out.log[d] || b.log[d].n > out.log[d].n) out.log[d] = b.log[d];
@@ -185,24 +196,29 @@
   }
 
   // ─────────────────────────── Audio (browser voice) ───────────────────────────
-  var arVoice = null;
+  var arVoice = null, lvVoice = null, lvVoiceIsLocal = false;
   function pickVoice() {
     if (!('speechSynthesis' in window)) return;
-    var voices = speechSynthesis.getVoices();
-    arVoice = voices.find(function (v) { return /^ar(-|_|$)/i.test(v.lang); }) || null;
+    var voices = speechSynthesis.getVoices().filter(function (v) { return /^ar(-|_|$)/i.test(v.lang); });
+    arVoice = voices[0] || null;
+    // Levantine: prefer a Lebanese, Syrian, Jordanian or Palestinian voice (Microsoft Edge has them)
+    var lv = voices.find(function (v) { return /^ar[-_](LB|SY|JO|PS)/i.test(v.lang); });
+    lvVoiceIsLocal = !!lv;
+    lvVoice = lv || arVoice;
   }
   if ('speechSynthesis' in window) {
     pickVoice();
     speechSynthesis.onvoiceschanged = pickVoice;
   }
-  function speak(text) {
+  function speak(text, kind) {
     if (!('speechSynthesis' in window)) { toast('This browser has no speech support.'); return; }
     if (!arVoice) pickVoice();
-    if (!arVoice) { toast('No Arabic voice found on this device. Install one in your system’s speech settings.'); return; }
+    var voice = kind === 'lv' ? lvVoice : arVoice;
+    if (!voice) { toast('No Arabic voice found on this device. Install one in your system’s speech settings.'); return; }
     speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(text);
-    u.voice = arVoice;
-    u.lang = arVoice.lang;
+    u.voice = voice;
+    u.lang = voice.lang;
     u.rate = 0.85;
     speechSynthesis.speak(u);
   }
@@ -391,7 +407,7 @@
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-speak]');
-    if (b) speak(b.getAttribute('data-speak'));
+    if (b) speak(b.getAttribute('data-speak'), b.getAttribute('data-voice'));
   });
 
   // ─────────────────────────── Dashboard ───────────────────────────
@@ -442,6 +458,7 @@
           tile('Day streak', streak(), (state.log[dayKey()] ? state.log[dayKey()].n : 0) + ' reviews today') +
           tile('Accuracy, last 7 days', acc == null ? '—' : acc + '%', 'answers not marked “Again”') +
         '</div>' +
+        lvDashboardHTML() +
         '<div class="row">' +
           '<section class="panel grow"><h2>Words by theme</h2>' + themes + '</section>' +
           '<section class="panel side"><h2>Trickiest words</h2>' + trickyHTML + '</section>' +
@@ -750,6 +767,300 @@
     else if ((e.key === 't' || e.key === 'T') && !session.revealed && key.endsWith(':ar')) { session.showTr = !session.showTr; renderStudy(); }
   });
 
+  // ─────────────────────────── Levantine (spoken) ───────────────────────────
+  // Sentence cards built on the core words. Stored in state.lv, so they never count toward the word count / city.
+  // A new sentence is first shown Levantine → English (understand it); once passed, the "say it" card
+  // (English → Levantine, out loud) joins the deck.
+  var LV = window.LEVANTINE || [];
+  var LV_BY_ID = {};
+  LV.forEach(function (x) { LV_BY_ID[x.id] = x; });
+  var LV_NEW_ORDER = NEW_ORDER.filter(function (w) { return LV_BY_ID[w.id]; }).map(function (w) { return LV_BY_ID[w.id]; });
+  function lvTheme(x) { return BY_ID[x.id] ? BY_ID[x.id].theme : ''; }
+  function lvCard(key) { return state.lv.cards[key]; }
+  function lvStarted(x) { return !!(lvCard(x.id + ':ar') || lvCard(x.id + ':en')); }
+  function lvStatus(x) {
+    var a = lvCard(x.id + ':ar'), e = lvCard(x.id + ':en');
+    if (!a && !e) return 'new';
+    return a && e && a.interval >= LEARNED_DAYS && e.interval >= LEARNED_DAYS ? 'learned' : 'learning';
+  }
+  function lvIntroducedToday() { return state.lv.introduced[dayKey()] || 0; }
+  function lvNewLeft() { return Math.min(Math.max(0, state.settings.lvNewPerDay - lvIntroducedToday()), LV.filter(function (x) { return !lvStarted(x); }).length); }
+  function lvCountDue() {
+    var end = startOfDay() + DAY, n = 0;
+    Object.keys(state.lv.cards).forEach(function (k) { if (state.lv.cards[k].due < end) n++; });
+    LV.forEach(function (x) { if (lvCard(x.id + ':ar') && !lvCard(x.id + ':en')) n++; });
+    return n;
+  }
+  function lvBuildQueue(opts) {
+    opts = opts || {};
+    var now = Date.now(), due = [];
+    var pool = opts.theme ? LV.filter(function (x) { return lvTheme(x) === opts.theme; }) : LV;
+    pool.forEach(function (x) {
+      ['ar', 'en'].forEach(function (d) {
+        var key = x.id + ':' + d, c = lvCard(key);
+        if (c && c.due <= now) due.push(key);
+        if (!c && d === 'en' && lvCard(x.id + ':ar')) due.push(key); // "say it" opens once understood
+      });
+    });
+    var newLimit = opts.extraNew != null ? opts.extraNew : Math.max(0, state.settings.lvNewPerDay - lvIntroducedToday());
+    var order = opts.theme ? pool : LV_NEW_ORDER;
+    var fresh = order.filter(function (x) { return !lvStarted(x); }).slice(0, newLimit).map(function (x) { return x.id + ':ar'; });
+    var q = shuffle(due);
+    fresh.forEach(function (k, i) { q.splice(Math.min(q.length, Math.floor(q.length / 2) + i * 2), 0, k); });
+    return q;
+  }
+
+  // ── record yourself (speaking practice) ──
+  var rec = { mr: null, chunks: [], url: null };
+  function canRecord() { return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); }
+  function stopRecording() { if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }
+  function toggleRecording() {
+    if (rec.mr && rec.mr.state === 'recording') { rec.mr.stop(); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var mr = new MediaRecorder(stream);
+      rec.mr = mr; rec.chunks = [];
+      mr.ondataavailable = function (e) { if (e.data && e.data.size) rec.chunks.push(e.data); };
+      mr.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        if (rec.url) URL.revokeObjectURL(rec.url);
+        rec.url = URL.createObjectURL(new Blob(rec.chunks, { type: mr.mimeType || 'audio/webm' }));
+        var btn = $('#rec-btn'), player = $('#rec-player');
+        if (btn) { btn.classList.remove('recording'); btn.innerHTML = micIcon() + ' Record again'; }
+        if (player) { player.src = rec.url; player.hidden = false; player.play().catch(function () {}); }
+      };
+      mr.start();
+      var btn = $('#rec-btn');
+      if (btn) { btn.classList.add('recording'); btn.innerHTML = '<i class="rec-dot" aria-hidden="true"></i> Stop'; }
+    }).catch(function () { toast('Microphone not available. Allow it in your browser to record yourself.'); });
+  }
+  function micIcon() {
+    return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
+  }
+  document.addEventListener('click', function (e) { if (e.target.closest('#rec-btn')) toggleRecording(); });
+
+  function lvSpeakBtn(text, label) {
+    return '<button class="btn icon-btn" data-speak="' + esc(text) + '" data-voice="lv" aria-label="' + esc(label) + '">' + speakerIcon() + ' ' + esc(label) + '</button>';
+  }
+  function lvDetailsHTML(x, withRecorder) {
+    var msa = BY_ID[x.id];
+    var rows = x.p.map(function (r) {
+      return '<div class="bd-row"><span class="ar" lang="ar">' + ar(r[0]) + '</span>' +
+        '<span class="tr">' + esc(r[1]) + '</span>' +
+        '<span><strong>' + esc(r[2]) + '</strong>' + (r[3] ? '<span class="note">' + arMixed(r[3]) + '</span>' : '') + '</span></div>';
+    }).join('');
+    return '' +
+      '<div class="head">' +
+        '<div class="ar lv-sentence" lang="apc">' + ar(x.s.ar) + '</div>' +
+        '<div class="translit">' + esc(x.s.tr) + '</div>' +
+        '<div class="meaning lv-meaning">' + esc(x.s.en) + '</div>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">' +
+          lvSpeakBtn(x.s.ar, 'Listen') +
+          (withRecorder && canRecord() ? '<button class="btn rec" id="rec-btn">' + micIcon() + ' Record yourself</button>' : '') +
+        '</div>' +
+        (withRecorder ? '<audio id="rec-player" controls hidden></audio>' : '') +
+      '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="lv-key">' +
+        '<div class="lv-key-item"><span class="label">Key word</span><span class="ar" lang="apc">' + ar(x.w[0]) + '</span><span><em>' + esc(x.w[1]) + '</em> · ' + esc(x.w[2]) + '</span></div>' +
+        (msa ? '<div class="lv-key-item"><span class="label">In standard Arabic</span><span class="ar" lang="ar">' + ar(msa.ar) + '</span><span><em>' + esc(msa.tr) + '</em> · ' + esc(msa.en) + '</span></div>' : '') +
+      '</div>' +
+      (x.tip ? '<div class="lv-tip">' + arMixed(x.tip) + '</div>' : '') +
+      '<div class="stack" style="gap:10px">' +
+        '<div class="label">Breakdown</div>' +
+        '<div class="breakdown">' + rows + '</div>' +
+      '</div>';
+  }
+
+  function lvDashboardHTML() {
+    if (!LV.length) return '';
+    var learned = LV.filter(function (x) { return lvStatus(x) === 'learned'; }).length;
+    var due = lvCountDue(), fresh = lvNewLeft();
+    return '<section class="panel lv-panel">' +
+      '<div><h2 style="margin:0 0 4px">Levantine · speaking</h2>' +
+      '<div class="muted small">' + learned + ' of ' + LV.length + ' sentences learned · ' + due + ' due' + (fresh ? ' · ' + fresh + ' new' : '') + ' · not counted in your city</div></div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn primary" href="#/lvstudy">Practise speaking</a><a class="btn" href="#/levantine">All sentences</a></div>' +
+    '</section>';
+  }
+
+  function viewLevantine() {
+    var learned = LV.filter(function (x) { return lvStatus(x) === 'learned'; }).length;
+    var started = LV.filter(lvStarted).length;
+    var due = lvCountDue(), fresh = lvNewLeft();
+    var startLabel = due + fresh === 0 ? 'Nothing due — practise anyway' : 'Start session · ' + due + ' due' + (fresh ? ' · ' + fresh + ' new' : '');
+    if (!arVoice) pickVoice();
+    var groups = THEMES.map(function (t) {
+      var xs = LV.filter(function (x) { return lvTheme(x) === t.id; });
+      if (!xs.length) return '';
+      return '<section class="wgroup"><div class="wgroup-head"><h2>' + esc(t.label) + '</h2><a href="#/lvstudy?theme=' + t.id + '">Study</a></div><div class="lvlist">' + xs.map(function (x) {
+        return '<button class="lvitem" data-lv="' + x.id + '"><i class="dot ' + lvStatus(x) + '" aria-hidden="true"></i>' +
+          '<span class="lvitem-text"><span class="ar" lang="apc">' + ar(x.s.ar) + '</span><span class="small muted">' + esc(x.s.en) + '</span></span></button>';
+      }).join('') + '</div></section>';
+    }).join('');
+
+    view.innerHTML = '<div class="stack" style="gap:28px">' +
+      '<div class="hello"><div><div class="muted small">Spoken Arabic of Syria, Lebanon, Palestine and Jordan</div>' +
+        '<h1 class="greet"><span>Levantine</span><span class="ar" lang="apc">' + ar('شَامِي') + '</span></h1>' +
+        '<div class="muted small">The same 100 words, in everyday sentences to say out loud. Not counted in your city.</div></div>' +
+        '<a class="btn primary big" href="#/lvstudy">' + esc(startLabel) + '</a></div>' +
+      '<div class="tiles">' +
+        tile('Sentences learned', learned + '<small> / ' + LV.length + '</small>', started + ' started') +
+        tile('Due today', due, fresh + ' new sentences available') +
+      '</div>' +
+      '<div class="row">' +
+        '<section class="panel grow"><h2>How Levantine differs from standard Arabic</h2><div class="cheat">' +
+          cheat('ق', 'ʾ (glottal stop)', 'In cities ق is a glottal stop: قَهْوِة ʾahwe “coffee”.') +
+          cheat('بْـ', 'b-', 'Before a present verb for everyday “I do”: بْحِبّ bḥebb “I love”.') +
+          cheat('عَم', 'ʿam', 'Right now, “-ing”: عَم بِقْرَا ʿam beʾra “I’m reading”.') +
+          cheat('رَح', 'raḥ', 'Future, “will”: رَح سَافِر raḥ sāfer “I will travel”.') +
+          cheat('بِدِّي', 'beddi', '“I want”: بِدِّي شَاي beddi shāy.') +
+          cheat('فِي', 'fī', '“There is / are”; مَا فِي ma fī “there isn’t”.') +
+          cheat('مَا / مِش', 'ma / mesh', 'Not: مَا with verbs, مِش with everything else.') +
+          cheat('شُو، وَين، كِيف', 'shu, wēn, kīf', 'What, where, how (MSA مَاذَا، أَيْنَ، كَيْفَ).') +
+        '</div></section>' +
+        '<section class="panel side"><h2>Settings</h2>' +
+          '<div class="field"><label for="set-lvnew">New sentences per day</label><select id="set-lvnew">' +
+            [3, 5, 10, 15].map(function (n) { return opt(String(n), String(n), String(state.settings.lvNewPerDay)); }).join('') +
+          '</select></div>' +
+          '<p class="muted small" style="margin:8px 0 0">' + (lvVoiceIsLocal
+            ? 'Audio uses your device’s Levantine voice (' + esc(lvVoice.name) + ').'
+            : 'Your device reads these with a standard Arabic voice. For a real Levantine accent, open the app in Microsoft Edge, which has Lebanese, Syrian and Jordanian voices.') + '</p>' +
+        '</section>' +
+      '</div>' +
+      '<div class="legend"><span><i class="dot"></i> new</span><span><i class="dot learning"></i> learning</span><span><i class="dot learned"></i> learned</span></div>' +
+      groups +
+    '</div>';
+
+    $('#set-lvnew').addEventListener('change', function (e) { state.settings.lvNewPerDay = parseInt(e.target.value, 10); save(); viewLevantine(); });
+    $all('[data-lv]').forEach(function (b) {
+      b.addEventListener('click', function () { openLv(LV_BY_ID[b.getAttribute('data-lv')]); });
+    });
+  }
+  function cheat(arText, tr, note) {
+    return '<div class="cheat-item"><span class="ar" lang="apc">' + ar(arText) + '</span><span class="cheat-tr">' + esc(tr) + '</span><span class="small muted">' + arMixed(note) + '</span></div>';
+  }
+  function openLv(x) {
+    var d = document.createElement('dialog');
+    d.innerHTML = '<div class="dialog-body"><button class="btn dialog-close" aria-label="Close">Close</button>' + lvDetailsHTML(x, true) + '</div>';
+    document.body.appendChild(d);
+    d.querySelector('.dialog-close').addEventListener('click', function () { d.close(); });
+    d.addEventListener('close', function () { stopRecording(); d.remove(); });
+    d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
+    d.showModal();
+  }
+
+  var lvSession = null;
+  function lvStartSession(opts) {
+    lvSession = { opts: opts || {}, queue: lvBuildQueue(opts), done: 0, revealed: false, showTr: false, hint: false, stats: { n: 0, ok: 0 } };
+    lvSession.total = lvSession.queue.length;
+  }
+  function viewLvStudy(params) {
+    var theme = params.theme || null;
+    if (!lvSession || lvSession.opts.theme !== theme || lvSession.finished) lvStartSession({ theme: theme });
+    renderLvStudy();
+  }
+  function renderLvStudy() {
+    if (!lvSession) lvStartSession({});
+    var S = lvSession;
+    var themeLabel = S.opts.theme ? (THEMES.find(function (t) { return t.id === S.opts.theme; }) || {}).label : 'All sentences';
+    if (!S.queue.length) return renderLvSummary(themeLabel);
+    var key = S.queue[0], id = key.split(':')[0], dir = key.split(':')[1], x = LV_BY_ID[id], card = lvCard(key);
+    var pct = Math.round((S.done / (S.done + S.queue.length)) * 100);
+    var dirLabel = dir === 'ar' ? 'Listen · what does it mean?' : 'Speak · say it in Levantine';
+    var html = '<div class="narrow stack">' +
+      '<div class="session-meta"><span>Levantine · ' + esc(themeLabel) + ' · ' + S.queue.length + ' left' + (!lvCard(id + ':ar') && !lvCard(id + ':en') ? ' · <strong>new</strong>' : '') + '</span><span>' + esc(dirLabel) + '</span></div>' +
+      '<div class="progress" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"><div style="width:' + pct + '%"></div></div>';
+    if (!S.revealed) {
+      if (dir === 'ar') {
+        html += '<section class="card front">' +
+          '<div class="ar lv-sentence big" lang="apc">' + ar(x.s.ar) + '</div>' +
+          (S.showTr ? '<div class="translit">' + esc(x.s.tr) + '</div>' : '') +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">' + lvSpeakBtn(x.s.ar, 'Listen') +
+            (S.showTr ? '' : '<button class="btn" id="show-tr" style="border-radius:999px">Show transliteration</button>') +
+          '</div></section>';
+      } else {
+        html += '<section class="card front">' +
+          '<div class="label">Say it in Levantine — out loud</div>' +
+          '<div class="lv-front-en">' + esc(x.s.en) + '</div>' +
+          (S.hint ? '<div class="hint">Key word: <span class="ar" lang="apc" style="font-size:30px">' + ar(x.w[0]) + '</span> <em>' + esc(x.w[1]) + '</em></div>'
+                  : '<button class="btn" id="hint" style="border-radius:999px">Hint: key word</button>') +
+          (canRecord() ? '<div class="small muted">Tip: record yourself on the next screen and compare.</div>' : '') +
+          '</section>';
+      }
+      html += '<button class="btn primary big block" id="reveal">' + (dir === 'en' ? 'I said it — show the answer' : 'Show answer') + '</button>' +
+        '<div class="keys">Space to reveal' + (dir === 'ar' ? ' · P to listen · T for transliteration' : '') + '</div>';
+    } else {
+      html += '<section class="card">' + lvDetailsHTML(x, true) + '</section>' +
+        '<div class="stack" style="gap:10px"><div class="small muted" style="text-align:center">' + (dir === 'en' ? 'How close was what you said?' : 'How well did you understand it?') + '</div>' +
+        '<div class="ratings">' + lvRateBtn(1, 'Again', card) + lvRateBtn(2, 'Hard', card) + lvRateBtn(3, 'Good', card) + lvRateBtn(4, 'Easy', card) + '</div>' +
+        '<div class="keys">Keys 1 · 2 · 3 · 4 · P to listen' + (canRecord() ? ' · R to record' : '') + '</div></div>';
+    }
+    html += '</div>';
+    view.innerHTML = html;
+    var r = $('#reveal'); if (r) r.addEventListener('click', lvReveal);
+    var t = $('#show-tr'); if (t) t.addEventListener('click', function () { S.showTr = true; renderLvStudy(); });
+    var h = $('#hint'); if (h) h.addEventListener('click', function () { S.hint = true; renderLvStudy(); });
+    $all('[data-lvrate]').forEach(function (b) { b.addEventListener('click', function () { lvRate(parseInt(b.getAttribute('data-lvrate'), 10)); }); });
+  }
+  function lvRateBtn(n, label, card) {
+    return '<button class="rate' + (n === 3 ? ' good' : '') + '" data-lvrate="' + n + '"><b>' + label + '</b><span>' + intervalLabel(card, n) + '</span></button>';
+  }
+  function lvReveal() {
+    lvSession.revealed = true;
+    renderLvStudy();
+    window.scrollTo({ top: 0 });
+    var key = lvSession.queue[0];
+    if (key.split(':')[1] === 'en') speak(LV_BY_ID[key.split(':')[0]].s.ar, 'lv'); // hear the answer after saying it
+  }
+  function lvRate(n) {
+    stopRecording();
+    var S = lvSession, key = S.queue.shift(), id = key.split(':')[0];
+    var wasNew = !lvCard(id + ':ar') && !lvCard(id + ':en');
+    var c = nextCard(lvCard(key), n);
+    state.lv.cards[key] = c;
+    if (wasNew) state.lv.introduced[dayKey()] = lvIntroducedToday() + 1;
+    logReview(n > 1);
+    S.stats.n++; if (n > 1) S.stats.ok++;
+    if (c.interval === 0) S.queue.splice(Math.min(S.queue.length, 3), 0, key);
+    else {
+      S.done++;
+      var speakKey = id + ':en';
+      if (key.endsWith(':ar') && !lvCard(speakKey) && S.queue.indexOf(speakKey) === -1) S.queue.splice(Math.min(S.queue.length, 5), 0, speakKey);
+    }
+    save();
+    S.revealed = false; S.showTr = false; S.hint = false;
+    renderLvStudy();
+  }
+  function renderLvSummary(themeLabel) {
+    var S = lvSession;
+    S.finished = S.stats.n > 0 || S.total > 0;
+    var remaining = LV.filter(function (x) { return !lvStarted(x) && (!S.opts.theme || lvTheme(x) === S.opts.theme); }).length;
+    view.innerHTML = '<div class="narrow stack"><section class="card front">' +
+      '<div class="label">Levantine · ' + esc(themeLabel) + '</div>' +
+      '<div class="word-en" style="font-size:40px">' + (S.stats.n ? 'Session done' : 'Nothing due right now') + '</div>' +
+      (S.stats.n ? '<div class="muted">' + S.stats.n + ' answers · ' + Math.round((S.stats.ok / S.stats.n) * 100) + '% not “Again”</div>' : '<div class="muted">You’re all caught up.</div>') +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px">' +
+        (remaining ? '<button class="btn primary" id="lvmore">Learn 5 more sentences</button>' : '') +
+        '<a class="btn" href="#/levantine">All sentences</a><a class="btn" href="#/dashboard">Dashboard</a>' +
+      '</div></section></div>';
+    var m = $('#lvmore');
+    if (m) m.addEventListener('click', function () {
+      var theme = S.opts.theme || null;
+      lvStartSession({ theme: theme, extraNew: 5 });
+      lvSession.opts = { theme: theme };
+      renderLvStudy();
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (route !== 'lvstudy' || !lvSession || e.target.matches('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!lvSession.queue.length) return;
+    var key = lvSession.queue[0], x = LV_BY_ID[key.split(':')[0]], dir = key.split(':')[1];
+    if (!lvSession.revealed && (e.code === 'Space' || e.key === 'Enter')) { e.preventDefault(); lvReveal(); }
+    else if (lvSession.revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); lvRate(parseInt(e.key, 10)); }
+    else if (e.key === 'p' || e.key === 'P') { if (lvSession.revealed || dir === 'ar') speak(x.s.ar, 'lv'); }
+    else if ((e.key === 't' || e.key === 'T') && !lvSession.revealed && dir === 'ar') { lvSession.showTr = !lvSession.showTr; renderLvStudy(); }
+    else if ((e.key === 'r' || e.key === 'R') && lvSession.revealed && canRecord()) { e.preventDefault(); toggleRecording(); }
+  });
+
   // ─────────────────────────── Word list ───────────────────────────
   var wordQuery = '';
   function viewWords() {
@@ -804,16 +1115,22 @@
   function rerender() {
     if (route === 'study') renderStudy();
     else if (route === 'words') renderWordGroups();
+    else if (route === 'lvstudy') renderLvStudy();
+    else if (route === 'levantine') viewLevantine();
     else viewDashboard();
   }
   function onRoute() {
     var hash = location.hash.replace(/^#\/?/, '');
     var name = hash.split('?')[0] || 'dashboard';
-    if (['dashboard', 'study', 'words'].indexOf(name) === -1) name = 'dashboard';
+    if (['dashboard', 'study', 'words', 'levantine', 'lvstudy'].indexOf(name) === -1) name = 'dashboard';
+    if (route === 'lvstudy' && name !== 'lvstudy') stopRecording();
     route = name;
-    $all('[data-nav]').forEach(function (a) { a.classList.toggle('active', a.getAttribute('data-nav') === name); });
+    var navName = name === 'lvstudy' ? 'levantine' : name;
+    $all('[data-nav]').forEach(function (a) { a.classList.toggle('active', a.getAttribute('data-nav') === navName); });
     if (name === 'study') viewStudy(currentParams());
     else if (name === 'words') viewWords();
+    else if (name === 'levantine') viewLevantine();
+    else if (name === 'lvstudy') viewLvStudy(currentParams());
     else viewDashboard();
     window.scrollTo({ top: 0 });
   }
