@@ -25,11 +25,12 @@
   // ─────────────────────────── State ───────────────────────────
   var DEFAULT_STATE = {
     version: 1,
-    settings: { showH: true, color: 'green', direction: 'mixed', newPerDay: 10, lvNewPerDay: 5 },
+    settings: { showH: true, color: 'green', direction: 'mixed', newPerDay: 2, lvNewPerDay: 5, perDayV: 2 },
     cards: {},      // "wordId:ar" | "wordId:en" → { reps, interval, ease, due, lapses, last }
     log: {},        // "YYYY-MM-DD" → { n, ok }
     introduced: {}, // "YYYY-MM-DD" → number of new words started that day
-    lv: { cards: {}, introduced: {} } // Levantine sentences: kept apart, never counted in the word count / city
+    lv: { cards: {}, introduced: {} }, // Levantine sentences: kept apart, never counted in the word count / city
+    lessons: { opened: {}, done: {} }  // conversation lessons: id → time first opened / marked done
   };
 
   function load() {
@@ -52,6 +53,10 @@
     base.cityShown = Array.isArray(s.cityShown) ? s.cityShown : []; // city pieces already shown (new ones rise in)
     var lv = s.lv && typeof s.lv === 'object' ? s.lv : {};
     base.lv = { cards: lv.cards && typeof lv.cards === 'object' ? lv.cards : {}, introduced: lv.introduced && typeof lv.introduced === 'object' ? lv.introduced : {} };
+    var ls = s.lessons && typeof s.lessons === 'object' ? s.lessons : {};
+    base.lessons = { opened: ls.opened && typeof ls.opened === 'object' ? ls.opened : {}, done: ls.done && typeof ls.done === 'object' ? ls.done : {} };
+    // one-time switch to 2 new words a day (asked for in Nov 2026); later changes in Settings are kept
+    if (!((s.settings || {}).perDayV >= 2)) { base.settings.newPerDay = 2; base.settings.perDayV = 2; }
     return base;
   }
 
@@ -71,6 +76,12 @@
     }
     out.cards = mergeCards(a.cards, b.cards);
     out.lv = { cards: mergeCards(a.lv.cards, b.lv.cards), introduced: mergeCounts(a.lv.introduced, b.lv.introduced) };
+    function mergeFirst(x, y) {
+      var o = Object.assign({}, x);
+      Object.keys(y).forEach(function (k) { o[k] = o[k] ? Math.min(o[k], y[k]) : y[k]; });
+      return o;
+    }
+    out.lessons = { opened: mergeFirst(a.lessons.opened, b.lessons.opened), done: mergeFirst(a.lessons.done, b.lessons.done) };
     out.log = Object.assign({}, a.log);
     Object.keys(b.log).forEach(function (d) {
       if (!out.log[d] || b.log[d].n > out.log[d].n) out.log[d] = b.log[d];
@@ -196,10 +207,11 @@
   }
 
   // ─────────────────────────── Audio (browser voice) ───────────────────────────
-  var arVoice = null, lvVoice = null, lvVoiceIsLocal = false;
+  var arVoice = null, lvVoice = null, lvVoiceIsLocal = false, allArVoices = [];
   function pickVoice() {
     if (!('speechSynthesis' in window)) return;
     var voices = speechSynthesis.getVoices().filter(function (v) { return /^ar(-|_|$)/i.test(v.lang); });
+    allArVoices = voices;
     arVoice = voices[0] || null;
     // Levantine: prefer a Lebanese, Syrian, Jordanian or Palestinian voice (Microsoft Edge has them)
     var lv = voices.find(function (v) { return /^ar[-_](LB|SY|JO|PS)/i.test(v.lang); });
@@ -268,6 +280,18 @@
     return out;
   })();
 
+  // Words from a conversation lesson join the deck (themes, Words page, flashcards) when the lesson is opened.
+  function isAvailable(w) { return !w.lesson || !!state.lessons.opened[w.lesson]; }
+  function availWords() { return WORDS.filter(isAvailable); }
+  // New-word order: words from opened lessons first (lesson by lesson), then the rest of the deck.
+  function newOrder() {
+    var first = [];
+    (window.LESSONS || []).forEach(function (l) {
+      if (state.lessons.opened[l.id]) l.words.forEach(function (x) { if (BY_ID[x.id]) first.push(BY_ID[x.id]); });
+    });
+    return first.concat(NEW_ORDER.filter(function (w) { return !w.lesson; }));
+  }
+
   function wordStatus(w) {
     var a = state.cards[w.id + ':ar'], e = state.cards[w.id + ':en'];
     if (!a && !e) return 'new';
@@ -285,7 +309,7 @@
     opts = opts || {};
     var dir = state.settings.direction;
     var now = Date.now();
-    var pool = opts.theme ? WORDS.filter(function (w) { return w.theme === opts.theme; }) : WORDS;
+    var pool = opts.theme ? availWords().filter(function (w) { return w.theme === opts.theme; }) : availWords();
     var due = [];
     pool.forEach(function (w) {
       ['ar', 'en'].forEach(function (d) {
@@ -297,7 +321,7 @@
       });
     });
     var newLimit = opts.extraNew != null ? opts.extraNew : Math.max(0, state.settings.newPerDay - introducedToday());
-    var order = opts.theme ? pool : NEW_ORDER;
+    var order = opts.theme ? pool : newOrder();
     var fresh = order.filter(function (w) { return !isStarted(w); }).slice(0, newLimit);
     var newKeys = fresh.map(function (w) { return w.id + ':' + (dir === 'en' ? 'en' : 'ar'); });
     // reviews first (shuffled), new words spread through the second half
@@ -388,6 +412,7 @@
           w.cog.map(function (c) { return '<span class="pill cog-pill"><b>' + esc(c[0]) + '</b> ' + esc(c[1]) + '</span>'; }).join('') + '</div>' +
           (w.cogNote ? '<p class="muted small" style="margin:0">' + esc(w.cogNote) + '</p>' : '') + '</div>' : '') +
         (w.note ? '<p class="muted small" style="margin:0">' + arMixed(w.note) + '</p>' : '') +
+        (w.lesson && LESSON_BY_ID[w.lesson] ? '<a class="small" href="#/lesson?id=' + w.lesson + '">From Lesson ' + LESSON_BY_ID[w.lesson].n + ': ' + esc(LESSON_BY_ID[w.lesson].title) + '</a>' : '') +
         '<button class="btn icon-btn" data-speak="' + esc(w.ar) + '" aria-label="Play pronunciation">' + speakerIcon() + ' Listen</button>' +
       '</div>' +
       '<div class="divider"></div>' +
@@ -413,10 +438,11 @@
 
   // ─────────────────────────── Dashboard ───────────────────────────
   function viewDashboard() {
-    var learned = WORDS.filter(function (w) { return wordStatus(w) === 'learned'; }).length;
-    var started = WORDS.filter(isStarted).length;
+    var AV = availWords();
+    var learned = AV.filter(function (w) { return wordStatus(w) === 'learned'; }).length;
+    var started = AV.filter(isStarted).length;
     var due = countDueToday();
-    var newLeft = Math.min(Math.max(0, state.settings.newPerDay - introducedToday()), WORDS.length - started);
+    var newLeft = Math.min(Math.max(0, state.settings.newPerDay - introducedToday()), AV.length - started);
     var acc = accuracy7();
     var hour = new Date().getHours();
     // Arabic greeting: صباح الخير in the morning, مساء الخير from noon on
@@ -425,7 +451,8 @@
     var greetEn = hour < 12 ? 'Good morning, Antoine' : hour < 18 ? 'Good afternoon, Antoine' : 'Good evening, Antoine';
 
     var themes = THEMES.map(function (t) {
-      var ws = WORDS.filter(function (w) { return w.theme === t.id; });
+      var ws = AV.filter(function (w) { return w.theme === t.id; });
+      if (!ws.length) return '';
       var l = ws.filter(function (w) { return wordStatus(w) === 'learned'; }).length;
       var s = ws.filter(isStarted).length;
       var pct = Math.round((l / ws.length) * 100);
@@ -454,11 +481,12 @@
           '<a class="btn primary big" href="#/study">' + esc(startLabel) + '</a></div>' +
         cityHTML(learned, started) +
         '<div class="tiles">' +
-          tile('Words learned', learned + '<small> / ' + WORDS.length + '</small>', started + ' started') +
+          tile('Words learned', learned + '<small> / ' + AV.length + '</small>', started + ' started') +
           tile('Due today', due, newLeft + ' new words available') +
           tile('Day streak', streak(), (state.log[dayKey()] ? state.log[dayKey()].n : 0) + ' reviews today') +
           tile('Accuracy, last 7 days', acc == null ? '—' : acc + '%', 'answers not marked “Again”') +
         '</div>' +
+        lessonsDashboardHTML() +
         lvDashboardHTML() +
         '<div class="row">' +
           '<section class="panel grow"><h2>Words by theme</h2>' + themes + '</section>' +
@@ -472,7 +500,7 @@
               opt('en', 'English → Arabic only', state.settings.direction) +
             '</select></div>' +
             '<div class="field"><label for="set-new">New words per day</label><select id="set-new">' +
-              [5, 10, 15, 20, 30].map(function (n) { return opt(String(n), String(n), String(state.settings.newPerDay)); }).join('') +
+              [1, 2, 3, 5, 10, 15, 20, 30].map(function (n) { return opt(String(n), String(n), String(state.settings.newPerDay)); }).join('') +
             '</select></div>' +
           '</section>' +
           '<section class="panel side"><h2>Your progress</h2>' +
@@ -736,7 +764,7 @@
   function renderSummary(themeLabel) {
     session.finished = session.stats.n > 0 || session.total > 0;
     var s = session.stats;
-    var remaining = WORDS.filter(function (w) { return !isStarted(w) && (!session.opts.theme || w.theme === session.opts.theme); }).length;
+    var remaining = availWords().filter(function (w) { return !isStarted(w) && (!session.opts.theme || w.theme === session.opts.theme); }).length;
     view.innerHTML = '<div class="narrow stack">' +
       '<section class="card front">' +
         '<div class="label">' + esc(themeLabel) + '</div>' +
@@ -767,6 +795,157 @@
     }
     else if ((e.key === 't' || e.key === 'T') && !session.revealed && key.endsWith(':ar')) { session.showTr = !session.showTr; renderStudy(); }
   });
+
+  // ─────────────────────────── Conversation lessons ───────────────────────────
+  var LESSONS = window.LESSONS || [];
+  var LESSON_BY_ID = {};
+  LESSONS.forEach(function (l) { LESSON_BY_ID[l.id] = l; });
+  var lessonUI = {}; // per lesson: role-play on/off, transliteration, English, revealed lines
+  function lessonStatus(l) { return state.lessons.done[l.id] ? 'done' : state.lessons.opened[l.id] ? 'open' : 'new'; }
+  function nextLesson() { return LESSONS.find(function (l) { return !state.lessons.done[l.id]; }) || null; }
+  function lessonStatusLabel(l) { var st = lessonStatus(l); return st === 'done' ? 'Done ✓' : st === 'open' ? 'In progress' : 'Not started'; }
+
+  // Each speaker gets a different Arabic voice when the device has more than one.
+  function lineVoice(who) {
+    if (!allArVoices.length) pickVoice();
+    if (!allArVoices.length) return null;
+    return who === 'A' ? allArVoices[0] : (allArVoices[1] || allArVoices[0]);
+  }
+  function speakLines(items) {
+    if (!('speechSynthesis' in window)) { toast('This browser has no speech support.'); return; }
+    if (!lineVoice('A')) { toast('No Arabic voice found on this device. Install one in your system’s speech settings.'); return; }
+    speechSynthesis.cancel();
+    items.forEach(function (it) {
+      var v = lineVoice(it.who), u = new SpeechSynthesisUtterance(it.text);
+      u.voice = v; u.lang = v.lang; u.rate = 0.85;
+      speechSynthesis.speak(u);
+    });
+  }
+
+  function lessonsDashboardHTML() {
+    if (!LESSONS.length) return '';
+    var done = LESSONS.filter(function (l) { return state.lessons.done[l.id]; }).length;
+    var nx = nextLesson();
+    return '<section class="panel lv-panel">' +
+      '<div><h2 style="margin:0 0 4px">Conversation lessons</h2>' +
+      '<div class="muted small">' + done + ' of ' + LESSONS.length + ' done' + (nx ? ' · next: Lesson ' + nx.n + ', ' + esc(nx.title) : ' · all done!') + '</div></div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+        (nx ? '<a class="btn primary" href="#/lesson?id=' + nx.id + '">' + (lessonStatus(nx) === 'open' ? 'Continue' : 'Start') + ' Lesson ' + nx.n + '</a>' : '') +
+        '<a class="btn" href="#/lessons">All lessons</a></div>' +
+    '</section>';
+  }
+
+  function viewLessons() {
+    var done = LESSONS.filter(function (l) { return state.lessons.done[l.id]; }).length;
+    var nx = nextLesson();
+    view.innerHTML = '<div class="stack" style="gap:28px">' +
+      '<div class="hello"><div><div class="muted small">Beginner · conversation</div>' +
+        '<h1 class="greet"><span>Lessons</span><span class="ar" lang="ar">' + ar('دُرُوس') + '</span></h1>' +
+        '<div class="muted small">Short dialogues starring you. A lesson’s new words join your flashcards and the Words page as soon as you open it.</div></div>' +
+        (nx ? '<a class="btn primary big" href="#/lesson?id=' + nx.id + '">' + (lessonStatus(nx) === 'open' ? 'Continue' : 'Start') + ' Lesson ' + nx.n + '</a>' : '') + '</div>' +
+      '<div><div class="small muted" style="margin-bottom:6px">' + done + ' of ' + LESSONS.length + ' lessons done</div>' +
+        '<div class="bar" role="img" aria-label="' + done + ' of ' + LESSONS.length + ' lessons done"><div style="width:' + (done / LESSONS.length * 100) + '%"></div></div></div>' +
+      '<div class="lesson-grid">' + LESSONS.map(function (l) {
+        var st = lessonStatus(l);
+        return '<a class="lesson-card st-' + st + '" href="#/lesson?id=' + l.id + '">' +
+          '<div class="lesson-top"><span class="label">Lesson ' + l.n + '</span><span class="pill' + (st === 'done' ? ' pill-done' : '') + '">' + lessonStatusLabel(l) + '</span></div>' +
+          '<div class="lesson-title">' + esc(l.title) + '</div>' +
+          '<div class="ar lesson-ar" lang="ar">' + ar(l.titleAr) + '</div>' +
+          '<div class="small muted">' + esc(l.goal) + '</div>' +
+          '<div class="small">' + l.lines.length + ' lines · ' + l.words.length + ' new words</div>' +
+        '</a>';
+      }).join('') + '</div>' +
+    '</div>';
+  }
+
+  function viewLesson(params) {
+    var l = LESSON_BY_ID[params.id] || LESSONS[0];
+    if (!l) { location.hash = '#/lessons'; return; }
+    if (!state.lessons.opened[l.id]) {
+      state.lessons.opened[l.id] = Date.now();
+      save();
+      toast(l.words.length + ' new words added to your flashcards and the Words page.');
+    }
+    renderLesson(l);
+  }
+
+  function renderLesson(l) {
+    var U = lessonUI[l.id] || (lessonUI[l.id] = { role: false, tr: true, en: true, shown: {} });
+    var idx = LESSONS.indexOf(l), prev = LESSONS[idx - 1], next = LESSONS[idx + 1];
+    var lines = l.lines.map(function (ln, i) {
+      var me = ln.who === 'A', who = l.cast[ln.who];
+      var hidden = U.role && me && !U.shown[i];
+      var rows = ln.p.map(function (r) {
+        return '<div class="bd-row"><span class="ar" lang="ar">' + ar(r[0]) + '</span><span class="tr">' + esc(r[1]) + '</span>' +
+          '<span><strong>' + esc(r[2]) + '</strong>' + (r[3] ? '<span class="note">' + arMixed(r[3]) + '</span>' : '') + '</span></div>';
+      }).join('');
+      return '<div class="dl ' + (me ? 'me' : 'them') + '">' +
+        '<div class="dl-who"><span class="ar" lang="ar">' + ar(who.ar) + '</span> <span class="small muted">' + esc(me ? 'you' : who.en) + '</span></div>' +
+        '<div class="dl-bubble">' +
+        (hidden
+          ? '<div class="dl-prompt"><span class="label">Your turn — say it in Arabic</span><div class="dl-prompt-en">' + esc(ln.en) + '</div>' +
+            '<button class="btn" data-showline="' + i + '">Show the answer</button></div>'
+          : '<div class="ar dl-ar" lang="ar">' + ar(ln.ar) + '</div>' +
+            (U.tr ? '<div class="dl-tr">' + esc(ln.tr) + '</div>' : '') +
+            (U.en ? '<div class="dl-en">' + esc(ln.en) + '</div>' : '') +
+            '<div class="dl-actions"><button class="btn dl-listen" data-speakline="' + i + '" aria-label="Listen to this line">' + speakerIcon() + '</button>' +
+            '<details class="dl-details"><summary>Breakdown</summary><div class="breakdown">' + rows + '</div></details></div>') +
+        '</div></div>';
+    }).join('');
+
+    var words = l.words.map(function (x) {
+      var w = BY_ID[x.id];
+      return '<button class="witem" data-word="' + w.id + '"><span style="display:flex;align-items:center;gap:10px"><i class="dot ' + wordStatus(w) + '" aria-hidden="true"></i><span class="en">' + esc(w.en) + '</span></span>' +
+        '<span class="ar" lang="ar">' + ar(w.ar) + '</span></button>';
+    }).join('');
+
+    view.innerHTML = '<div class="narrow stack" style="gap:24px">' +
+      '<a class="small muted" href="#/lessons">← All lessons</a>' +
+      '<div><div class="muted small">Lesson ' + l.n + ' of ' + LESSONS.length + ' · beginner</div>' +
+        '<h1 class="greet" style="margin:2px 0 4px"><span>' + esc(l.title) + '</span><span class="ar" lang="ar">' + ar(l.titleAr) + '</span></h1>' +
+        '<div class="muted">' + esc(l.goal) + '</div></div>' +
+      '<div class="dl-tools">' +
+        '<button class="btn primary" id="play-all">' + speakerIcon() + ' Listen to the dialogue</button>' +
+        '<button class="btn" id="role" aria-pressed="' + U.role + '">' + (U.role ? 'Show all lines' : 'Play my part') + '</button>' +
+        '<label class="toggle"><input type="checkbox" id="tg-tr"' + (U.tr ? ' checked' : '') + '> Transliteration</label>' +
+        '<label class="toggle"><input type="checkbox" id="tg-en"' + (U.en ? ' checked' : '') + '> English</label>' +
+      '</div>' +
+      (U.role ? '<div class="lv-tip">Your lines are hidden. Read the English, say it out loud in Arabic, then press “Show the answer” to check and hear it.</div>' : '') +
+      '<section class="dialogue">' + lines + '</section>' +
+      '<section class="panel"><h2>Good to know</h2><ul class="notes">' + l.notes.map(function (n) { return '<li>' + arMixed(n) + '</li>'; }).join('') + '</ul></section>' +
+      '<section class="panel"><h2>New words in this lesson</h2>' +
+        '<p class="muted small" style="margin:-6px 0 14px">Added to your flashcards and to their themes on the Words page. They come in before other new words, ' + state.settings.newPerDay + ' a day.</p>' +
+        '<div class="wlist">' + words + '</div></section>' +
+      '<div class="lesson-end">' +
+        (state.lessons.done[l.id] ? '<span class="pill pill-done">Lesson done ✓</span>' : '<button class="btn primary big" id="mark-done">Mark lesson as done</button>') +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          (prev ? '<a class="btn" href="#/lesson?id=' + prev.id + '">← Lesson ' + prev.n + '</a>' : '') +
+          (next ? '<a class="btn" href="#/lesson?id=' + next.id + '">Lesson ' + next.n + ' →</a>' : '') +
+        '</div></div>' +
+    '</div>';
+
+    $('#play-all').addEventListener('click', function () { speakLines(l.lines.map(function (ln) { return { text: ln.ar, who: ln.who }; })); });
+    $('#role').addEventListener('click', function () { U.role = !U.role; U.shown = {}; renderLesson(l); });
+    $('#tg-tr').addEventListener('change', function (e) { U.tr = e.target.checked; renderLesson(l); });
+    $('#tg-en').addEventListener('change', function (e) { U.en = e.target.checked; renderLesson(l); });
+    $all('[data-speakline]').forEach(function (b) {
+      b.addEventListener('click', function () { var ln = l.lines[+b.getAttribute('data-speakline')]; speakLines([{ text: ln.ar, who: ln.who }]); });
+    });
+    $all('[data-showline]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var i = +b.getAttribute('data-showline');
+        U.shown[i] = true; renderLesson(l);
+        speakLines([{ text: l.lines[i].ar, who: 'A' }]);
+      });
+    });
+    $all('[data-word]').forEach(function (b) { b.addEventListener('click', function () { openWord(BY_ID[b.getAttribute('data-word')]); }); });
+    var md = $('#mark-done');
+    if (md) md.addEventListener('click', function () {
+      state.lessons.done[l.id] = Date.now(); save();
+      toast('Lesson ' + l.n + ' done!');
+      renderLesson(l);
+    });
+  }
 
   // ─────────────────────────── Levantine (spoken) ───────────────────────────
   // Sentence cards built on the core words. Stored in state.lv, so they never count toward the word count / city.
@@ -1076,7 +1255,7 @@
     var q = wordQuery.trim().toLowerCase();
     var qs = strip(q);
     var html = THEMES.map(function (t) {
-      var ws = WORDS.filter(function (w) {
+      var ws = availWords().filter(function (w) {
         if (w.theme !== t.id) return false;
         if (!q) return true;
         return w.en.toLowerCase().indexOf(q) > -1 || w.tr.toLowerCase().indexOf(q) > -1 || strip(w.ar).indexOf(qs) > -1 ||
@@ -1117,21 +1296,25 @@
     if (route === 'study') renderStudy();
     else if (route === 'words') renderWordGroups();
     else if (route === 'lvstudy') renderLvStudy();
+    else if (route === 'lessons') viewLessons();
+    else if (route === 'lesson') viewLesson(currentParams());
     else if (route === 'levantine') viewLevantine();
     else viewDashboard();
   }
   function onRoute() {
     var hash = location.hash.replace(/^#\/?/, '');
     var name = hash.split('?')[0] || 'dashboard';
-    if (['dashboard', 'study', 'words', 'levantine', 'lvstudy'].indexOf(name) === -1) name = 'dashboard';
+    if (['dashboard', 'study', 'words', 'levantine', 'lvstudy', 'lessons', 'lesson'].indexOf(name) === -1) name = 'dashboard';
     if (route === 'lvstudy' && name !== 'lvstudy') stopRecording();
     route = name;
-    var navName = name === 'lvstudy' ? 'levantine' : name;
+    var navName = name === 'lvstudy' ? 'levantine' : name === 'lesson' ? 'lessons' : name;
     $all('[data-nav]').forEach(function (a) { a.classList.toggle('active', a.getAttribute('data-nav') === navName); });
     if (name === 'study') viewStudy(currentParams());
     else if (name === 'words') viewWords();
     else if (name === 'levantine') viewLevantine();
     else if (name === 'lvstudy') viewLvStudy(currentParams());
+    else if (name === 'lessons') viewLessons();
+    else if (name === 'lesson') viewLesson(currentParams());
     else viewDashboard();
     window.scrollTo({ top: 0 });
   }

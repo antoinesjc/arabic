@@ -239,7 +239,8 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 
 @media (max-width: 640px) {
   .topbar { padding: 10px 16px; }
-  .nav { flex-wrap: wrap; gap: 2px; }
+  .nav { flex-wrap: nowrap; gap: 2px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .nav a { white-space: nowrap; }
   .nav a { padding: 10px 11px; }
   .view { padding: 24px 16px 48px; }
   .card { padding: 28px 18px; }
@@ -276,3 +277,41 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 .lvitem-text .ar { font-size: 24px; line-height: 1.7; }
 .lvitem-text .small { text-align: left; }
 @media (max-width: 640px) { .lvlist { grid-template-columns: 1fr; } }
+
+/* ── Conversation lessons ── */
+.lesson-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.lesson-card { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none; color: var(--ink); background: #fff; }
+.lesson-card:hover { border-color: var(--ink); }
+.lesson-card.st-done { background: #fafafa; }
+.lesson-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lesson-title { font-size: 20px; font-weight: 600; }
+.lesson-ar { font-size: 26px; line-height: 1.6; text-align: right; }
+.pill-done { background: var(--ink); color: #fff; border-color: var(--ink); }
+.dl-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.dialogue { display: flex; flex-direction: column; gap: 18px; }
+.dl { display: flex; flex-direction: column; gap: 4px; max-width: 88%; }
+.dl.them { align-self: flex-start; }
+.dl.me { align-self: flex-end; align-items: flex-end; }
+.dl-who { display: flex; gap: 8px; align-items: baseline; }
+.dl-who .ar { font-size: 18px; font-weight: 600; }
+.dl-bubble { border: 1px solid var(--line-2); border-radius: 16px; padding: 14px 18px; background: #fff; display: flex; flex-direction: column; gap: 4px; min-width: 240px; }
+.dl.them .dl-bubble { border-top-left-radius: 4px; }
+.dl.me .dl-bubble { border-top-right-radius: 4px; background: #f6f6f6; border-color: #e4e4e4; }
+.dl-ar { font-size: clamp(26px, 5vw, 34px); line-height: 1.8; text-align: right; }
+.dl-tr { font-style: italic; color: var(--ink-2); }
+.dl-en { font-size: 15px; }
+.dl-actions { display: flex; gap: 10px; align-items: flex-start; margin-top: 6px; flex-wrap: wrap; }
+.dl-listen { width: 44px; padding: 0; border-radius: 999px; }
+.dl-details { flex: 1; min-width: 200px; }
+.dl-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 14px; }
+.dl-details .breakdown { margin-top: 6px; background: #fff; }
+.dl-prompt { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.dl-prompt-en { font-size: 20px; font-weight: 600; }
+.notes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+.notes .ar-inline { font-size: 1.2em; }
+.lesson-end { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+@media (max-width: 640px) {
+  .dl { max-width: 100%; }
+  .dl-bubble { min-width: 0; }
+  .lesson-grid { grid-template-columns: 1fr; }
+}

@@ -13,7 +13,13 @@ Download or clone the repo and open `index.html` in your browser. There is no se
 - **Study**: spaced-repetition flashcards that mix Arabic → English and English → Arabic.
   A new word is first shown Arabic → English; once you pass it, the English → Arabic card joins the deck.
   Rate each card *Again / Hard / Good / Easy* and the app schedules the next review.
+  New words come in at 2 a day by default (change it under Settings on the dashboard).
 - **Words**: all words by theme, searchable (also by their English, French or Spanish relative); click one for its full card.
+- **Lessons**: a beginner conversation course of 8 short dialogues in Modern Standard Arabic, starring Antoine
+  (greetings, introductions, where you live, languages, work, at the café, numbers, directions). Each line has transliteration,
+  English, audio and a word-by-word breakdown; “Play my part” hides your lines so you say them first.
+  A lesson’s new words join their themes on the Words page and your flashcards as soon as you open the lesson,
+  and they are introduced before other new words.
 - **Levantine**: spoken Arabic of Syria, Lebanon, Palestine and Jordan — one everyday sentence for each of the 100 core words,
   with transliteration, a word-by-word breakdown, the key word next to its standard-Arabic form, and speaking tips.
   A new sentence starts as *listen → understand*; once you pass it, a *say it out loud* card (English → Levantine) joins the deck.
@@ -52,6 +58,7 @@ Settings → Time & language → Speech if there is none.
 - `js/words.js` — the 100 core words, sentences and breakdowns
 - `js/cognates.js` — the “words you already know” module (same format, plus the related EN/FR/ES words)
 - `js/countries.js` — the Arabic-speaking countries theme
+- `js/lessons.js` — the conversation lessons and the new words they bring
 - `js/levantine.js` — the Levantine sentences (one per core word, linked by id)
 - `js/app.js` — dashboard, study session, scheduling, storage
 
